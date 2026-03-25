@@ -1,0 +1,22 @@
+{
+  "name": "verdify-meta-ads-bureau",
+  "version": "1.0.0",
+  "description": "Meta Ads Bureau — AI Campagne Builder door Verdify",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.10",
+    "vercel": "^37.0.0"
+  }
+}
