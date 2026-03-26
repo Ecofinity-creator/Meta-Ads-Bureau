@@ -17,6 +17,34 @@ function stripJson(str) {
   return str.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
 }
 
+// callSearch — routes via /api-search which adds anthropic-beta: web-search-2025-03-05
+async function callSearch(system, userPrompt, maxTokens = 1400) {
+  const key = getApiKey();
+  const headers = { "Content-Type": "application/json" };
+  if (key) headers["x-api-key"] = key;
+  const response = await fetch("/api-search", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: maxTokens,
+      system,
+      tools: [{ type: "web_search_20250305", name: "web_search" }],
+      messages: [{ role: "user", content: userPrompt }],
+    }),
+  });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error("Search API fout " + response.status + ": " + (errData?.error?.message || response.statusText));
+  }
+  const data = await response.json();
+  // Collect all text blocks from the response
+  return (data.content ?? [])
+    .filter(b => b.type === "text")
+    .map(b => b.text || "")
+    .join("");
+}
+
 async function callClaude(system, userPrompt, maxTokens = 1000) {
   const key = getApiKey();
   // Use /api proxy (local server) — falls back to direct call with key in browser
@@ -1470,8 +1498,8 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
   const zoekReviews = async () => {
     setLoadingReviews(true);
     try {
-      const prompt = "Zoek online reviews en testimonials over het bedrijf " + bedrijf.naam + (bedrijf.url ? " (" + bedrijf.url + ")" : "") + ". Verzamel de meest voorkomende klachten, wensen en positieve punten. Schrijf ze als vloeiende tekst van 8-12 zinnen.";
-      const raw = await callClaude("Je bent een marktonderzoeker. Geef een samenvatting van gevonden reviews als vloeiende tekst.", prompt, 800);
+      const prompt = "Zoek online naar echte klantreviews, testimonials en ervaringen over het bedrijf " + bedrijf.naam + (bedrijf.url ? " (website: " + bedrijf.url + ")" : "") + ". Zoek op Google, review-sites, sociale media en forums. Verzamel de werkelijke klachten, complimenten en ervaringen die echte klanten hebben gedeeld. Geef een samenvatting van wat je online vindt als concrete citaten en observaties, zonder zelf iets te verzinnen. Als je niets vindt over dit specifieke bedrijf, zoek dan naar reviews van vergelijkbare bedrijven in dezelfde sector.";
+      const raw = await callSearch("Je bent een marktonderzoeker die echte online reviews verzamelt. Zoek actief op het internet en rapporteer wat je vindt.", prompt, 1200);
       if (raw) { setReviews(prev => (prev ? prev + "\n\n--- Online gevonden reviews ---\n" : "") + raw); setReviewsGevonden(true); }
     } catch(e) { console.error(e); }
     finally { setLoadingReviews(false); }
@@ -1480,9 +1508,9 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
   const zoekConcurrenten = async () => {
     setLoadingConc(true);
     try {
-      const prompt = "Analyseer 3 directe concurrenten van " + bedrijf.naam + (bedrijf.url ? " (" + bedrijf.url + ")" : "") + " in deze sector: " + bedrijf.aanbod.substring(0,100) + ". Welke pijnpunten lossen zij NIET op? Schrijf dit als klantenklachten in de ik-vorm, 6-8 zinnen per concurrent.";
-      const raw = await callClaude("Je bent een competitive intelligence expert. Schrijf pijnpunten als klantencitaten in de ik-vorm.", prompt, 1000);
-      if (raw) { setReviews(prev => (prev ? prev + "\n\n--- Pijnpunten bij concurrenten ---\n" : "--- Pijnpunten bij concurrenten ---\n") + raw); setConcGevonden(true); }
+      const prompt = "Zoek online naar de directe concurrenten van " + bedrijf.naam + (bedrijf.url ? " (website: " + bedrijf.url + ")" : "") + (bedrijf.aanbod ? " die dit aanbieden: " + bedrijf.aanbod.substring(0,150) : "") + ". Zoek op review-sites, forums, sociale media en Google naar klachten en pijnpunten die klanten hebben bij die concurrenten. Geef de top 3 concurrenten met per concurrent hun naam en 3-5 echte klantpijnpunten als concrete citaten in de ik-vorm. Baseer je ALLEEN op wat je online vindt.";
+      const raw = await callSearch("Je bent een competitive intelligence expert. Zoek actief online naar concurrenten en hun klantpijnpunten. Rapporteer alleen wat je werkelijk online vindt.", prompt, 1400);
+      if (raw) { setReviews(prev => (prev ? prev + "\n\n--- Pijnpunten concurrenten (online gevonden) ---\n" : "--- Pijnpunten concurrenten (online gevonden) ---\n") + raw); setConcGevonden(true); }
     } catch(e) { console.error(e); }
     finally { setLoadingConc(false); }
   };
@@ -1530,8 +1558,8 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
           display: "flex", alignItems: "center", gap: 7,
         }}>
           {loadingReviews
-            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #2d7a3a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Reviews opzoeken…</>
-            : "🔍 Zoek reviews online"}
+            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #2d7a3a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Reviews genereren…</>
+            : "🔍 Genereer klantreviews"}
         </button>
         <button onClick={zoekConcurrenten} disabled={loadingConc} style={{
           background: loadingConc ? "#edf2fc" : "linear-gradient(135deg,#1e4a8a,#60a5fa)",
@@ -1541,18 +1569,18 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
           display: "flex", alignItems: "center", gap: 7,
         }}>
           {loadingConc
-            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #1e4a8a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Concurrenten zoeken…</>
-            : "🏆 Analyseer concurrenten"}
+            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #1e4a8a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Pijnpunten zoeken…</>
+            : "🏆 Pijnpunten concurrenten"}
         </button>
       </div>
       {reviewsGevonden && (
         <div style={{ background: "#edf7ed", border: "1px solid #a8d4a8", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 12, color: "#1a4a1a" }}>
-          <strong>✓ Reviews gevonden online</strong> — hieronder samengevat. Je kan ze nog aanvullen.
+          <strong>✓ Klantreviews gegenereerd</strong> — op basis van sectorkennis. Pas aan naar wens.
         </div>
       )}
       {concGevonden && (
         <div style={{ background: "#edf2fc", border: "1px solid #a0b8e0", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 12, color: "#1a2a4a" }}>
-          <strong>✓ Concurrenten geanalyseerd</strong> — pijnpunten zijn toegevoegd aan het reviewsveld.
+          <strong>✓ Concurrentenpijnpunten gegenereerd</strong> — typische klachten voor jouw sector.
         </div>
       )}
       <Textarea label="Klantreviews of feedback (optioneel)" value={reviews} onChange={setReviews}
