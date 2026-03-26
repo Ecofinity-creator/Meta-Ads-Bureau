@@ -127,8 +127,13 @@ const HELP_STATISCH = {
     secties: [
       {
         icon: "📊",
-        kop: "Hoe exporteer je een CSV vanuit Meta Ads Manager?",
-        tekst: "Stap 1: Ga naar business.facebook.com → Ads Manager\nStap 2: Klik op 'Doelgroepen' in het linker menu\nStap 3: Selecteer een bestaande doelgroep\nStap 4: Klik op 'Acties' → 'Exporteren'\nStap 5: Kies CSV-formaat en download\n\nGeen bestaande doelgroepen? Gebruik dan de handmatige beschrijving hieronder."
+        kop: "Methode 1 — Export vanuit lopende campagnes (aanbevolen)",
+        tekst: "Stap 1: Ga naar business.facebook.com → Advertentiebeheer\nStap 2: Klik bovenaan op 'Campagnes'\nStap 3: Stel de tijdsperiode in op 'Afgelopen 3 maanden' (rechtsboven)\nStap 4: Selecteer alle campagnes (vinkje bovenaan de lijst)\nStap 5: Klik op 'Exporteren' → 'Exporteer tabeldata (.csv)'\nStap 6: Upload het gedownloade CSV-bestand hieronder\n\nZo haal je demografische data en gedragspatronen uit je eigen campagnehistoriek."
+      },
+      {
+        icon: "👥",
+        kop: "Methode 2 — Export vanuit Doelgroepen",
+        tekst: "Stap 1: Ga naar business.facebook.com → Ads Manager\nStap 2: Klik op het menu (≡) → 'Doelgroepen'\nStap 3: Selecteer een bestaande doelgroep\nStap 4: Klik op 'Acties' → 'Exporteren'\nStap 5: Kies CSV-formaat en download\n\nGeen bestaande doelgroepen? Gebruik dan de handmatige beschrijving hieronder."
       },
       {
         icon: "👥",
@@ -1952,14 +1957,14 @@ export default function App() {
             <div style={{
               background: "#ffffff",
               borderRadius: 10,
-              padding: "6px 14px",
+              padding: "5px 12px",
               display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 2px 16px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.08)",
+              boxShadow: "0 2px 16px rgba(0,0,0,.4)",
             }}>
               <img
                 src={VERDIFY_LOGO}
                 alt="Verdify"
-                style={{ height: 36, width: "auto", objectFit: "contain", display: "block" }}
+                style={{ height: 46, width: "auto", objectFit: "contain", display: "block" }}
               />
             </div>
             <div style={{ width: 1, height: 32, background: C.borderGold, margin: "0 18px" }} />
