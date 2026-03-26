@@ -1987,33 +1987,33 @@ export default function App() {
         {stap === 7 && <Stap7 bedrijf={bedrijf} segmenten={segmenten} pijnpunten={pijnpunten} combinaties={combinaties} campagne={campagne} onBack={() => setStap(6)} onHelp={() => setHelpOpen(true)} />}
       </div>
 
-      {/* ── Verdify footer logo ── */}
+            {/* ── Verdify footer logo ── */}
       <div style={{
         borderTop: `1px solid ${C.border}`,
         background: C.bgMid,
-        padding: "36px 40px 32px",
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        gap: 20,
+        padding: "24px 40px",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        gap: 24,
       }}>
         <div style={{
           background: "#ffffff",
-          borderRadius: 14,
-          padding: "18px 48px",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 4px 24px rgba(0,0,0,.5)",
-          width: "100%", maxWidth: 600,
+          borderRadius: 10,
+          padding: "8px 14px",
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 2px 12px rgba(0,0,0,.4)",
+          flexShrink: 0,
         }}>
           <img
             src={VERDIFY_LOGO}
             alt="Verdify"
-            style={{ height: 80, width: "auto", objectFit: "contain", display: "block" }}
+            style={{ height: 52, width: "auto", objectFit: "contain", display: "block" }}
           />
         </div>
-        <div style={{ textAlign: "center", width: "100%", maxWidth: 600 }}>
-          <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 24, color: C.text, letterSpacing: "-.3px", marginBottom: 6 }}>
+        <div>
+          <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 22, color: C.text, letterSpacing: "-.3px", marginBottom: 4, lineHeight: 1 }}>
             Meta Ads Bureau
           </div>
-          <div style={{ fontSize: 12, color: C.muted, fontFamily: font.body, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 4 }}>
+          <div style={{ fontSize: 11, color: C.muted, fontFamily: font.body, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 3 }}>
             AI-aangedreven campagne builder
           </div>
           <div style={{ fontSize: 11, color: C.goudDim, fontFamily: font.body, letterSpacing: ".5px" }}>
