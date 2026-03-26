@@ -128,7 +128,7 @@ const HELP_STATISCH = {
       {
         icon: "📊",
         kop: "Methode 1 — Export vanuit lopende campagnes (aanbevolen)",
-        tekst: "Stap 1: Ga naar business.facebook.com → Advertentiebeheer\nStap 2: Klik bovenaan op 'Campagnes'\nStap 3: Stel de tijdsperiode in op 'Afgelopen 3 maanden' (rechtsboven)\nStap 4: Selecteer alle campagnes (vinkje bovenaan de lijst)\nStap 5: Klik op 'Exporteren' → 'Exporteer tabeldata (.csv)'\nStap 6: Upload het gedownloade CSV-bestand hieronder\n\nZo haal je demografische data en gedragspatronen uit je eigen campagnehistoriek."
+        tekst: "Stap 1: Ga naar business.facebook.com → Advertentiebeheer\nStap 2: Klik bovenaan op 'Campagnes'\nStap 3: Stel de tijdsperiode in op 'Afgelopen 3 maanden' (rechtsboven)\nStap 4: Selecteer alle campagnes (vinkje bovenaan de lijst)\n\n▶ DRAAITABEL AANPASSEN VOOR MAXIMALE DATA:\nStap 5: Klik op 'Kolommen' → 'Kolommen aanpassen'\nStap 6: Voeg deze kolommen toe:\n   • Demografisch: Leeftijd, Geslacht, Locatie, Taal\n   • Gedrag: Apparaat, Plaatsing, Platform\n   • Resultaten: Bereik, Vertoningen, Klikken, CTR, CPC\n   • Conversies: Kosten per resultaat, ROAS, Aankoopwaarde\n   • Doelgroep: Interesses, Gedragingen, Verbindingen\nStap 7: Klik 'Toepassen' om de draaitabel op te slaan\n\nStap 8: Klik op 'Exporteren' → 'Exporteer tabeldata (.csv)'\nStap 9: Upload het gedownloade CSV-bestand hieronder\n\n💡 Hoe meer kolommen je toevoegt, hoe rijker de doelgroepanalyse."
       },
       {
         icon: "👥",
@@ -1953,23 +1953,15 @@ export default function App() {
       {/* Header */}
       <div style={{ background: "linear-gradient(90deg, #0d1a10 0%, #131009 40%)", borderBottom: `1px solid ${C.border}`, padding: "0 28px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 4px 32px rgba(0,0,0,.5)" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{
-              background: "#ffffff",
-              borderRadius: 10,
-              padding: "5px 12px",
+              width: 36, height: 36, borderRadius: 9,
+              background: `linear-gradient(135deg, ${C.goud}, ${C.goudBright})`,
               display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 2px 16px rgba(0,0,0,.4)",
-            }}>
-              <img
-                src={VERDIFY_LOGO}
-                alt="Verdify"
-                style={{ height: 46, width: "auto", objectFit: "contain", display: "block" }}
-              />
-            </div>
-            <div style={{ width: 1, height: 32, background: C.borderGold, margin: "0 18px" }} />
+              fontSize: 18, boxShadow: C.shadowGold, color: "#1a1614", fontWeight: 800,
+            }}>◆</div>
             <div>
-              <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 17, color: C.text, lineHeight: 1, letterSpacing: "-.3px" }}>Meta Ads Bureau</div>
+              <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 19, color: C.text, lineHeight: 1, letterSpacing: "-.3px" }}>Meta Ads Bureau</div>
               <div style={{ fontSize: 10, color: C.goudDim, fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" }}>AI Campagne Builder</div>
             </div>
           </div>
@@ -1993,6 +1985,40 @@ export default function App() {
         {stap === 5 && <Stap5 segmenten={segmenten} pijnpunten={pijnpunten} gekozenPijnpunten={gekozenPijnpunten} combinaties={combinaties} setCombinaties={setCombinaties} onNext={() => setStap(6)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} />}
         {stap === 6 && <Stap6 bedrijf={bedrijf} combinaties={combinaties} segmenten={segmenten} pijnpunten={pijnpunten} onNext={c => { setCampagne(c); setStap(7); }} onBack={() => setStap(5)} onHelp={() => setHelpOpen(true)} />}
         {stap === 7 && <Stap7 bedrijf={bedrijf} segmenten={segmenten} pijnpunten={pijnpunten} combinaties={combinaties} campagne={campagne} onBack={() => setStap(6)} onHelp={() => setHelpOpen(true)} />}
+      </div>
+
+      {/* ── Verdify footer logo ── */}
+      <div style={{
+        borderTop: `1px solid ${C.border}`,
+        background: C.bgMid,
+        padding: "28px 40px",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        gap: 32,
+      }}>
+        <div style={{
+          background: "#ffffff",
+          borderRadius: 14,
+          padding: "14px 36px",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 4px 24px rgba(0,0,0,.5)",
+        }}>
+          <img
+            src={VERDIFY_LOGO}
+            alt="Verdify"
+            style={{ height: 72, width: "auto", objectFit: "contain", display: "block" }}
+          />
+        </div>
+        <div>
+          <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 22, color: C.text, letterSpacing: "-.3px", marginBottom: 4 }}>
+            Meta Ads Bureau
+          </div>
+          <div style={{ fontSize: 12, color: C.muted, fontFamily: font.body, letterSpacing: "1.5px", textTransform: "uppercase" }}>
+            AI-aangedreven campagne builder
+          </div>
+          <div style={{ fontSize: 11, color: C.goudDim, fontFamily: font.body, marginTop: 6, letterSpacing: ".5px" }}>
+            Powered by Verdify · verdify.eu
+          </div>
+        </div>
       </div>
     </div>
   );
