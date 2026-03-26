@@ -22,28 +22,33 @@ async function callSearch(system, userPrompt, maxTokens = 1400) {
   const key = getApiKey();
   const headers = { "Content-Type": "application/json" };
   if (key) headers["x-api-key"] = key;
-  const response = await fetch("/api-search", {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: maxTokens,
-      system,
-      tools: [{ type: "web_search_20250305", name: "web_search" }],
-      messages: [{ role: "user", content: userPrompt }],
-    }),
-  });
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error("Search API fout " + response.status + ": " + (errData?.error?.message || response.statusText));
-  }
-  const data = await response.json();
-  // Collect all text blocks from the response
-  return (data.content ?? [])
-    .filter(b => b.type === "text")
-    .map(b => b.text || "")
-    .join("");
+
+  // Try /api-search first (Vercel serverless with web-search beta header)
+  try {
+    const resp = await fetch("/api-search", {
+      method: "POST", headers,
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: maxTokens, system,
+        tools: [{ type: "web_search_20250305", name: "web_search" }],
+        messages: [{ role: "user", content: userPrompt }],
+      }),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.content && !data.error) {
+        return (data.content ?? []).filter(b => b.type === "text").map(b => b.text || "").join("");
+      }
+    }
+  } catch { /* fall through to regular API */ }
+
+  // Fallback: regular API without live search
+  return callClaude(
+    system + " Gebruik je trainingskennis over dit bedrijf en zijn sector.",
+    userPrompt, maxTokens
+  );
 }
+
 
 async function callClaude(system, userPrompt, maxTokens = 1000) {
   const key = getApiKey();
@@ -1558,8 +1563,8 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
           display: "flex", alignItems: "center", gap: 7,
         }}>
           {loadingReviews
-            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #2d7a3a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Reviews genereren…</>
-            : "🔍 Genereer klantreviews"}
+            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #2d7a3a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Reviews ophalen…</>
+            : "⭐ Reviews & ervaringen ophalen"}
         </button>
         <button onClick={zoekConcurrenten} disabled={loadingConc} style={{
           background: loadingConc ? "#edf2fc" : "linear-gradient(135deg,#1e4a8a,#60a5fa)",
@@ -1569,8 +1574,8 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
           display: "flex", alignItems: "center", gap: 7,
         }}>
           {loadingConc
-            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #1e4a8a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Pijnpunten zoeken…</>
-            : "🏆 Pijnpunten concurrenten"}
+            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #1e4a8a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Concurrenten zoeken…</>
+            : "🏆 Concurrent pijnpunten ophalen"}
         </button>
       </div>
       {reviewsGevonden && (
@@ -1878,7 +1883,7 @@ JSON: {"fotos":[{"concept":"...","prompt":"Engelse prompt","waarom":"..."}],"vid
                   <span style={{ display: "inline-block", background: `linear-gradient(135deg, ${C.goud}, ${C.goudBright})`, color: "#1a1614", fontSize: 10, fontWeight: 800, padding: "4px 12px", borderRadius: 6, marginBottom: 12, fontFamily: font.body, letterSpacing: "1px", textTransform: "uppercase" }}>
                     {t.hook_type ?? ""}
                   </span>
-                  <p style={{ fontFamily: font.body, fontSize: 14, lineHeight: 1.75, margin: 0, whiteSpace: "pre-wrap", color: C.textSoft }}>{t.tekst ?? ""}</p>
+                  <p style={{ fontFamily: font.body, fontSize: 14, lineHeight: 1.75, margin: 0, whiteSpace: "pre-wrap", color: C.textSoft }}>{(t.tekst ?? "").replace(/\\n/g, "\n")}</p>
                 </div>
               ))}
             </div>
