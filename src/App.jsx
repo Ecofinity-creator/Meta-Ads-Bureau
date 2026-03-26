@@ -92,7 +92,7 @@ const FALLBACK_PIJNPUNTEN = [
   "Ik wil schalen maar weet niet hoe zonder alles zelf te doen",
 ];
 
-const STAP_NAMEN = ["Bedrijfsinfo", "Doelgroep", "Segmenten & Reviews", "Pijnpunten", "Matrix", "Campagne", "Advertenties"];
+const STAP_NAMEN = ["Bedrijfsinfo", "Doelgroep", "Segmenten & Reviews", "Pijnpunten", "Matrix", "Campagne", "Advertenties", "Meta Setup"];
 
 // ─── STATISCHE HELP-INHOUD PER STAP ─────────────────────────────────────────
 
@@ -267,13 +267,27 @@ const HELP_STATISCH = {
       },
       {
         icon: "🖼️",
-        kop: "Foto-prompts gebruiken (Midjourney / DALL-E)",
-        tekst: "Kopieer de Engelse prompt en plak die in:\n• Midjourney via Discord: /imagine [prompt]\n• DALL-E via ChatGPT: gewoon plakken in het chatvenster\n• Adobe Firefly of Leonardo.ai als alternatief\n\nDe prompts zijn al geoptimaliseerd voor advertentieformaten."
+        kop: "Foto-prompts — direct openen",
+        tekst: "Kopieer de Engelse prompt en plak in een van deze tools:",
+        links: [
+          { label: "Midjourney (Discord)", url: "https://www.midjourney.com" },
+          { label: "DALL-E via ChatGPT", url: "https://chatgpt.com" },
+          { label: "Adobe Firefly", url: "https://firefly.adobe.com" },
+          { label: "Leonardo.ai", url: "https://leonardo.ai" },
+          { label: "Ideogram", url: "https://ideogram.ai" },
+        ]
       },
       {
         icon: "🎬",
-        kop: "Video-prompts gebruiken (Sora / Veo 3)",
-        tekst: "Kopieer de Engelse prompt en gebruik:\n• Sora via openai.com/sora\n• Veo 3 via Google Labs (beperkte toegang)\n• Runway Gen-3 als breed beschikbaar alternatief\n• Pika Labs voor snelle resultaten\n\nDe opbouw (hook → body → CTA) is al ingebakken in de prompt."
+        kop: "Video-prompts — direct openen",
+        tekst: "Kopieer de Engelse prompt (hook → body → CTA) en gebruik:",
+        links: [
+          { label: "Sora (OpenAI)", url: "https://sora.com" },
+          { label: "Runway Gen-3", url: "https://runwayml.com" },
+          { label: "Pika Labs", url: "https://pika.art" },
+          { label: "Kling AI", url: "https://klingai.com" },
+          { label: "Veo 3 (Google Labs)", url: "https://labs.google" },
+        ]
       }
     ],
     zoektermen: [
@@ -290,23 +304,23 @@ const HELP_STATISCH = {
 
 const C = {
   goud:        "#c9a84c",
-  goudLight:   "#1e1a0e",
+  goudLight:   "#fdf5e0",
   goudBright:  "#e2bf6a",
   goudDim:     "#8a6a10",
-  bg:          "#0d0b08",
-  bgMid:       "#131009",
-  card:        "#1a1510",
-  border:      "#2e2618",
-  borderGold:  "#4a3c1a",
-  text:        "#f0e8d8",
-  textSoft:    "#c8bfac",
-  muted:       "#7a7060",
+  bg:          "#f5f0e8",
+  bgMid:       "#ece6d8",
+  card:        "#ffffff",
+  border:      "#d4c9b0",
+  borderGold:  "#b8922a",
+  text:        "#1a1208",
+  textSoft:    "#3d3020",
+  muted:       "#8a7a5a",
   success:     "#4ade80",
   error:       "#f87171",
   info:        "#60a5fa",
-  shadow:      "0 4px 28px rgba(0,0,0,.55)",
-  shadowGold:  "0 4px 20px rgba(201,168,76,.14)",
-  drawerBg:    "#110e08",
+  shadow:      "0 4px 28px rgba(0,0,0,.12)",
+  shadowGold:  "0 4px 20px rgba(180,140,40,.20)",
+  drawerBg:    "#f9f3e3",
 };
 
 const font = {
@@ -463,9 +477,22 @@ Geef 3 tips en 3 sector-specifieke zoektermen. Wees concreet en gebruik de bedri
                   {s.kop}
                 </span>
               </div>
-              <div style={{ fontFamily: font.body, fontSize: 13, color: C.textSoft, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+              <div style={{ fontFamily: font.body, fontSize: 13, color: C.textSoft, lineHeight: 1.7, whiteSpace: "pre-wrap", marginBottom: s.links ? 10 : 0 }}>
                 {s.tekst}
               </div>
+              {s.links && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  {s.links.map((lnk, li) => (
+                    <a key={li} href={lnk.url} target="_blank" rel="noopener"
+                      style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 7, background: C.goudLight, border: `1px solid ${C.borderGold}`, color: C.goud, fontFamily: font.body, fontSize: 12, fontWeight: 600, textDecoration: "none" }}
+                      onMouseEnter={e => e.currentTarget.style.background = "#e8d88a22"}
+                      onMouseLeave={e => e.currentTarget.style.background = C.goudLight}
+                    >
+                      <span style={{ fontSize: 14 }}>↗</span> {lnk.label}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
 
@@ -545,7 +572,7 @@ Geef 3 tips en 3 sector-specifieke zoektermen. Wees concreet en gebruik de bedri
               <div style={{ marginBottom: 12 }}>
                 {(aiTips.tips ?? []).map((t, i) => (
                   <div key={i} style={{
-                    background: "#1a1f0e",
+                    background: "#f0f8f0",
                     border: `1px solid ${C.borderGold}`,
                     borderRadius: 12, padding: 16, marginBottom: 10,
                   }}>
@@ -712,7 +739,7 @@ function ProgressBar({ stap }) {
               }}>
                 {done ? "✓" : n}
               </div>
-              {i < 6 && (
+              {i < 7 && (
                 <div style={{
                   width: 28, height: 2,
                   background: done ? `linear-gradient(90deg, ${C.goud}, ${C.goudBright})` : C.border,
@@ -920,8 +947,8 @@ function UspSuggester({ naam, url, onInsert }) {
 
   return (
     <div style={{
-      background: "#111a12",
-      border: `1px solid #2a4a2e`,
+      background: "#edf7ed",
+      border: `1px solid #a8d4a8`,
       borderRadius: 14,
       padding: "20px 22px",
       marginBottom: 20,
@@ -1021,7 +1048,7 @@ function UspSuggester({ naam, url, onInsert }) {
                     onChange={e => setEditVal(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") saveEdit(i); if (e.key === "Escape") setEditIdx(null); }}
                     style={{
-                      flex: 1, background: "#0d1a10", border: "1.5px solid #4ade80",
+                      flex: 1, background: "#f0f8f0", border: "1.5px solid #4ade80",
                       borderRadius: 6, padding: "4px 10px", color: C.text,
                       fontFamily: font.body, fontSize: 13, outline: "none",
                     }}
@@ -1177,8 +1204,8 @@ function AanbodSuggester({ naam, url, onInsert }) {
 
   return (
     <div style={{
-      background: "#0e1520",
-      border: "1px solid #1e3050",
+      background: "#edf2fc",
+      border: "1px solid #a0b8e0",
       borderRadius: 14,
       padding: "20px 22px",
       marginBottom: 8,
@@ -1280,7 +1307,7 @@ function AanbodSuggester({ naam, url, onInsert }) {
                 rows={6}
                 style={{
                   width: "100%", boxSizing: "border-box",
-                  background: "#0a1018", border: "1.5px solid #60a5fa",
+                  background: "#f0f4fc", border: "1.5px solid #60a5fa",
                   borderRadius: 10, padding: "12px 14px",
                   color: C.text, fontFamily: font.body, fontSize: 13,
                   lineHeight: 1.65, resize: "vertical", outline: "none",
@@ -1426,6 +1453,10 @@ function SegmentKaart({ seg }) {
 
 function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
   const [reviews, setReviews] = useState("");
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [loadingConc, setLoadingConc] = useState(false);
+  const [reviewsGevonden, setReviewsGevonden] = useState(false);
+  const [concGevonden, setConcGevonden] = useState(false);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [jsonEdit, setJsonEdit] = useState(JSON.stringify(segmenten, null, 2));
   const [jsonErr, setJsonErr] = useState("");
@@ -1434,6 +1465,26 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
   const applyJson = () => {
     try { setSegmenten(JSON.parse(jsonEdit)); setJsonErr(""); setJsonOpen(false); }
     catch (e) { setJsonErr("Ongeldige JSON: " + e.message); }
+  };
+
+  const zoekReviews = async () => {
+    setLoadingReviews(true);
+    try {
+      const prompt = "Zoek online reviews en testimonials over het bedrijf " + bedrijf.naam + (bedrijf.url ? " (" + bedrijf.url + ")" : "") + ". Verzamel de meest voorkomende klachten, wensen en positieve punten. Schrijf ze als vloeiende tekst van 8-12 zinnen.";
+      const raw = await callClaude("Je bent een marktonderzoeker. Geef een samenvatting van gevonden reviews als vloeiende tekst.", prompt, 800);
+      if (raw) { setReviews(prev => (prev ? prev + "\n\n--- Online gevonden reviews ---\n" : "") + raw); setReviewsGevonden(true); }
+    } catch(e) { console.error(e); }
+    finally { setLoadingReviews(false); }
+  };
+
+  const zoekConcurrenten = async () => {
+    setLoadingConc(true);
+    try {
+      const prompt = "Analyseer 3 directe concurrenten van " + bedrijf.naam + (bedrijf.url ? " (" + bedrijf.url + ")" : "") + " in deze sector: " + bedrijf.aanbod.substring(0,100) + ". Welke pijnpunten lossen zij NIET op? Schrijf dit als klantenklachten in de ik-vorm, 6-8 zinnen per concurrent.";
+      const raw = await callClaude("Je bent een competitive intelligence expert. Schrijf pijnpunten als klantencitaten in de ik-vorm.", prompt, 1000);
+      if (raw) { setReviews(prev => (prev ? prev + "\n\n--- Pijnpunten bij concurrenten ---\n" : "--- Pijnpunten bij concurrenten ---\n") + raw); setConcGevonden(true); }
+    } catch(e) { console.error(e); }
+    finally { setLoadingConc(false); }
   };
 
   const analyseer = async () => {
@@ -1463,14 +1514,49 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
         {jsonOpen && (
           <div style={{ marginTop: 12 }}>
             <textarea value={jsonEdit} onChange={e => setJsonEdit(e.target.value)} rows={10}
-              style={{ width: "100%", boxSizing: "border-box", padding: 14, borderRadius: 10, border: `1px solid ${jsonErr ? C.error : C.border}`, fontFamily: "monospace", fontSize: 12, background: C.bgMid, color: C.textSoft, resize: "vertical" }} />
+              style={{ width: "100%", boxSizing: "border-box", padding: 14, borderRadius: 10, border: `1px solid ${jsonErr ? C.error : C.border}`, fontFamily: "monospace", fontSize: 12, background: "#f9f6ef", color: "#2a1f0a", resize: "vertical" }} />
             {jsonErr && <div style={{ color: C.error, fontSize: 12, marginTop: 4 }}>{jsonErr}</div>}
             <Btn onClick={applyJson} small style={{ marginTop: 8 }}>Toepassen</Btn>
           </div>
         )}
       </div>
+      {/* ── AI Review opzoeker ── */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+        <button onClick={zoekReviews} disabled={loadingReviews} style={{
+          background: loadingReviews ? "#e8f0e8" : "linear-gradient(135deg,#2d7a3a,#4ade80)",
+          border: "none", borderRadius: 9, padding: "9px 18px",
+          color: loadingReviews ? C.muted : "#111", fontFamily: font.body, fontWeight: 700,
+          fontSize: 13, cursor: loadingReviews ? "default" : "pointer",
+          display: "flex", alignItems: "center", gap: 7,
+        }}>
+          {loadingReviews
+            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #2d7a3a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Reviews opzoeken…</>
+            : "🔍 Zoek reviews online"}
+        </button>
+        <button onClick={zoekConcurrenten} disabled={loadingConc} style={{
+          background: loadingConc ? "#edf2fc" : "linear-gradient(135deg,#1e4a8a,#60a5fa)",
+          border: "none", borderRadius: 9, padding: "9px 18px",
+          color: loadingConc ? C.muted : "#fff", fontFamily: font.body, fontWeight: 700,
+          fontSize: 13, cursor: loadingConc ? "default" : "pointer",
+          display: "flex", alignItems: "center", gap: 7,
+        }}>
+          {loadingConc
+            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #1e4a8a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Concurrenten zoeken…</>
+            : "🏆 Analyseer concurrenten"}
+        </button>
+      </div>
+      {reviewsGevonden && (
+        <div style={{ background: "#edf7ed", border: "1px solid #a8d4a8", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 12, color: "#1a4a1a" }}>
+          <strong>✓ Reviews gevonden online</strong> — hieronder samengevat. Je kan ze nog aanvullen.
+        </div>
+      )}
+      {concGevonden && (
+        <div style={{ background: "#edf2fc", border: "1px solid #a0b8e0", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 12, color: "#1a2a4a" }}>
+          <strong>✓ Concurrenten geanalyseerd</strong> — pijnpunten zijn toegevoegd aan het reviewsveld.
+        </div>
+      )}
       <Textarea label="Klantreviews of feedback (optioneel)" value={reviews} onChange={setReviews}
-        placeholder="Plak hier klantreviews, testimonials of feedback. AI destilleert de pijnpunten…" rows={5} />
+        placeholder="Plak hier klantreviews, testimonials of feedback — of gebruik de knoppen hierboven om online te zoeken. AI destilleert de pijnpunten…" rows={5} />
       {loading ? <Loader text="Pijnpunten analyseren…" /> : <Btn onClick={analyseer}>Analyseer pijnpunten →</Btn>}
     </Card>
   );
@@ -1537,9 +1623,18 @@ function Stap5({ segmenten, pijnpunten, gekozenPijnpunten, combinaties, setCombi
           <thead>
             <tr style={{ background: C.bgMid }}>
               <th style={{ padding: "12px 18px", textAlign: "left", fontFamily: font.body, fontSize: 11, color: C.muted, borderBottom: `1px solid ${C.border}`, fontWeight: 600, letterSpacing: "1px", textTransform: "uppercase" }}>Segment</th>
-              {gekozenPijnpunten.map(pi => (
-                <th key={pi} style={{ padding: "12px 10px", fontSize: 11, fontFamily: font.body, color: C.muted, borderBottom: `1px solid ${C.border}`, textAlign: "center", fontWeight: 600 }}>{afkorten(pijnpunten[pi])}</th>
-              ))}
+              {gekozenPijnpunten.map(pi => {
+                const words = pijnpunten[pi].split(" ");
+                const half = Math.ceil(words.length / 2);
+                const line1 = words.slice(0, half).join(" ");
+                const line2 = words.slice(half).join(" ");
+                return (
+                  <th key={pi} style={{ padding: "10px 8px", fontSize: 11, fontFamily: font.body, color: C.muted, borderBottom: `1px solid ${C.border}`, textAlign: "center", fontWeight: 600, maxWidth: 110, lineHeight: 1.4, verticalAlign: "bottom" }}>
+                    <div>{line1}</div>
+                    {line2 && <div>{line2}</div>}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -1802,7 +1897,7 @@ JSON: {"fotos":[{"concept":"...","prompt":"Engelse prompt","waarom":"..."}],"vid
   );
 }
 
-function Stap7({ bedrijf, segmenten, pijnpunten, combinaties, campagne, onBack, onHelp }) {
+function Stap7({ bedrijf, segmenten, pijnpunten, combinaties, campagne, onBack, onHelp, onNaarMeta }) {
   const [actieve, setActieve] = useState(0);
   const combs = combinaties.map(k => {
     const [sId, pIdx] = k.split("_");
@@ -1845,6 +1940,7 @@ function Stap7({ bedrijf, segmenten, pijnpunten, combinaties, campagne, onBack, 
           {actieve > 0 && <Btn variant="outline" onClick={() => setActieve(actieve - 1)} small>← Vorige</Btn>}
         </div>
         {actieve < combs.length - 1 && <Btn onClick={() => setActieve(actieve + 1)} small>Volgende →</Btn>}
+        {actieve === combs.length - 1 && <Btn onClick={() => onNaarMeta()} small>Campagne opzetten in Meta →</Btn>}
       </div>
     </div>
   );
@@ -1890,7 +1986,7 @@ function ApiKeyBanner() {
   };
 
   return (
-    <div style={{ background: "#0a1a0e", borderBottom: "2px solid #1e3a20", padding: "14px 28px" }}>
+    <div style={{ background: "#edf7ed", borderBottom: "2px solid #1e3a20", padding: "14px 28px" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
           <span>🔑</span>
@@ -1917,6 +2013,162 @@ function ApiKeyBanner() {
 }
 
 
+
+// ─── STAP 8 — META CAMPAGNE OPZETTEN ────────────────────────────────────────
+
+const META_STAPPEN = [
+  {
+    nr: "01", icon: "🏢",
+    titel: "Meta Business Suite instellen",
+    sub: "De basis vóór je begint",
+    stappen: [
+      "Ga naar business.facebook.com en maak een Business Account aan (of log in).",
+      "Voeg je Facebook-pagina en Instagram-account toe onder 'Accounts'.",
+      "Ga naar 'Advertentieaccounts' → voeg een betaalmethode toe.",
+      "Installeer de Meta Pixel op je website via 'Databronnen' → 'Pixels' → 'Pixel toevoegen'. Gebruik de WordPress-plugin of plak de code in de <head> van je site.",
+      "Verifieer je domein onder 'Brand Safety' → 'Domeinen'.",
+    ]
+  },
+  {
+    nr: "02", icon: "🎯",
+    titel: "Campagnestructuur opzetten",
+    sub: "Campagne → Advertentieset → Advertentie",
+    stappen: [
+      "Open Advertentiebeheer → klik 'Maken' (groene knop).",
+      "Kies je campagnedoelstelling: voor leads → 'Leads genereren', voor verkoop → 'Conversies', voor naamsbekendheid → 'Bereik'.",
+      "Stel het campagnebudget in (aanbevolen: €10-30/dag per advertentieset bij het testen).",
+      "Per combinatie uit je matrix maak je een aparte ADVERTENTIESET aan.",
+      "Elke advertentieset krijgt zijn eigen doelgroeptargeting (leeftijd, geslacht, interesses) op basis van je segment.",
+      "Zet 'Advantage+ doelgroepen' uit als je zelf wil targeten.",
+    ]
+  },
+  {
+    nr: "03", icon: "👥",
+    titel: "Doelgroepen instellen per advertentieset",
+    sub: "Één segment = één advertentieset",
+    stappen: [
+      "Klik op je advertentieset → 'Doelgroep bewerken'.",
+      "Locatie: kies je doelregio (België, Nederland, of specifieke steden/stralen).",
+      "Leeftijd & geslacht: stel in op basis van je micro-segment uit stap 2.",
+      "Gedetailleerde targeting: voeg interesses toe die passen bij het segment (bv. 'LinkedIn', 'Ondernemen', 'KMO').",
+      "Tip: maak ook een Lookalike Audience aan op basis van je bestaande klanten (upload klantenlijst als CSV via 'Doelgroepen' → 'Aangepaste doelgroep').",
+      "Sla de doelgroep op als template voor hergebruik.",
+    ]
+  },
+  {
+    nr: "04", icon: "📝",
+    titel: "Advertenties uploaden",
+    sub: "Gebruik de teksten en visuals uit stap 7",
+    stappen: [
+      "Binnen je advertentieset → klik 'Advertentie toevoegen'.",
+      "Kies het advertentieformaat: 'Enkele afbeelding of video' of 'Carrousel' voor meerdere.",
+      "Upload je visual (foto of video) uit de prompts van stap 7.",
+      "Plak de primaire tekst (advertentietekst) uit stap 7 — test 2-3 varianten (A/B test).",
+      "Voeg de koptekst toe (één van de 10 kopteksten uit stap 7).",
+      "Stel de CTA-knop in: 'Meer info', 'Aanmelden', 'Offerte aanvragen', enz. passend bij je campagne.",
+      "Voeg de bestemmings-URL in (je landingspagina of leadformulier).",
+    ]
+  },
+  {
+    nr: "05", icon: "📊",
+    titel: "Meten en optimaliseren",
+    sub: "Na 3-5 dagen je eerste resultaten analyseren",
+    stappen: [
+      "Open Advertentiebeheer → bekijk de kolommen: Bereik, Vertoningen, CTR, Kosten per resultaat.",
+      "Pauzeer advertentiesets met een CTR onder 1% na €30 besteed — die werken niet.",
+      "Schaal succesvolle advertentiesets op: verhoog budget met max 20% per dag.",
+      "Test elke 2 weken een nieuwe hook-variant (andere emotie of invalshoek).",
+      "Maak Retargeting-campagnes aan voor bezoekers die je website bezochten maar niet converteerden.",
+      "Vergelijk je combinaties: welk segment × pijnpunt scoort het best? Zet daar meer budget op.",
+    ]
+  },
+  {
+    nr: "06", icon: "🔑",
+    titel: "Handige links",
+    sub: "Direct openen in Meta",
+    links: [
+      { label: "Meta Advertentiebeheer", url: "https://business.facebook.com/adsmanager" },
+      { label: "Meta Business Suite", url: "https://business.facebook.com" },
+      { label: "Meta Doelgroepen", url: "https://business.facebook.com/adsmanager/audiences" },
+      { label: "Meta Pixel instellen", url: "https://business.facebook.com/events_manager" },
+      { label: "Meta Blueprint (gratis training)", url: "https://www.facebook.com/business/learn" },
+      { label: "Meta Advertentiespecificaties", url: "https://www.facebook.com/business/ads-guide" },
+    ]
+  }
+];
+
+function Stap8({ onBack }) {
+  const [open, setOpen] = useState(null);
+  return (
+    <div>
+      <div style={{ background: C.card, borderRadius: 18, border: `1px solid ${C.border}`, padding: "32px 36px", boxShadow: C.shadow, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+          <span style={{ fontSize: 28 }}>🚀</span>
+          <h2 style={{ fontFamily: font.display, fontWeight: 700, fontSize: 26, margin: 0, color: C.text, letterSpacing: "-.5px" }}>
+            Campagne opzetten in Meta
+          </h2>
+        </div>
+        <p style={{ color: C.muted, fontSize: 14, fontFamily: font.body, marginBottom: 0, paddingLeft: 40 }}>
+          Volg deze stappen om je gegenereerde advertenties live te zetten in Meta Ads Manager.
+        </p>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {META_STAPPEN.map((ms, i) => (
+          <div key={i} style={{ background: C.card, borderRadius: 14, border: `1px solid ${open === i ? C.goud : C.border}`, boxShadow: C.shadow, overflow: "hidden", transition: "border .2s" }}>
+            {/* Header */}
+            <div onClick={() => setOpen(open === i ? null : i)} style={{ padding: "18px 24px", cursor: "pointer", display: "flex", alignItems: "center", gap: 16, userSelect: "none" }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: `linear-gradient(135deg,${C.goud},${C.goudBright})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: font.display, fontWeight: 800, fontSize: 13, color: "#1a1208", flexShrink: 0 }}>
+                {ms.nr}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 18 }}>{ms.icon}</span>
+                  <span style={{ fontFamily: font.display, fontWeight: 700, fontSize: 17, color: C.text }}>{ms.titel}</span>
+                </div>
+                <div style={{ fontSize: 12, color: C.muted, fontFamily: font.body, marginTop: 2 }}>{ms.sub}</div>
+              </div>
+              <span style={{ color: C.goud, fontSize: 20, fontWeight: 700, transition: "transform .2s", transform: open === i ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+            </div>
+
+            {/* Content */}
+            {open === i && (
+              <div style={{ padding: "0 24px 20px", borderTop: `1px solid ${C.border}` }}>
+                {ms.stappen && (
+                  <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                    {ms.stappen.map((stap, si) => (
+                      <div key={si} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: C.goudLight, border: `1.5px solid ${C.goud}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: font.body, fontWeight: 700, fontSize: 11, color: C.goud, flexShrink: 0, marginTop: 1 }}>{si + 1}</div>
+                        <div style={{ fontFamily: font.body, fontSize: 13, color: C.textSoft, lineHeight: 1.65 }}>{stap}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {ms.links && (
+                  <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 7 }}>
+                    {ms.links.map((lnk, li) => (
+                      <a key={li} href={lnk.url} target="_blank" rel="noopener"
+                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", borderRadius: 9, background: C.goudLight, border: `1px solid ${C.borderGold}`, color: C.goud, fontFamily: font.body, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                        <span style={{ fontSize: 16 }}>↗</span> {lnk.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <button onClick={onBack} style={{ background: C.goudLight, border: `1px solid ${C.borderGold}`, borderRadius: 10, padding: "10px 20px", color: C.goud, fontFamily: font.body, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+          ← Terug naar advertenties
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -1928,6 +2180,7 @@ export default function App() {
   const [combinaties, setCombinaties] = useState([]);
   const [campagne, setCampagne] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
+  const [stap8Open, setStap8Open] = useState(false);
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: font.body }}>
@@ -1951,7 +2204,7 @@ export default function App() {
       <ApiKeyBanner />
 
       {/* Header */}
-      <div style={{ background: "linear-gradient(90deg, #0d1a10 0%, #131009 40%)", borderBottom: `1px solid ${C.border}`, padding: "0 28px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 4px 32px rgba(0,0,0,.5)" }}>
+      <div style={{ background: "linear-gradient(90deg, #e8f0e8 0%, #ece6d8 40%)", borderBottom: `1px solid ${C.border}`, padding: "0 28px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 4px 32px rgba(0,0,0,.5)" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{
@@ -1984,7 +2237,8 @@ export default function App() {
         {stap === 4 && <Stap4 pijnpunten={pijnpunten} gekozen={gekozenPijnpunten} setGekozen={setGekozenPijnpunten} onNext={() => setStap(5)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} />}
         {stap === 5 && <Stap5 segmenten={segmenten} pijnpunten={pijnpunten} gekozenPijnpunten={gekozenPijnpunten} combinaties={combinaties} setCombinaties={setCombinaties} onNext={() => setStap(6)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} />}
         {stap === 6 && <Stap6 bedrijf={bedrijf} combinaties={combinaties} segmenten={segmenten} pijnpunten={pijnpunten} onNext={c => { setCampagne(c); setStap(7); }} onBack={() => setStap(5)} onHelp={() => setHelpOpen(true)} />}
-        {stap === 7 && <Stap7 bedrijf={bedrijf} segmenten={segmenten} pijnpunten={pijnpunten} combinaties={combinaties} campagne={campagne} onBack={() => setStap(6)} onHelp={() => setHelpOpen(true)} />}
+        {stap === 7 && <Stap7 bedrijf={bedrijf} segmenten={segmenten} pijnpunten={pijnpunten} combinaties={combinaties} campagne={campagne} onBack={() => setStap(6)} onHelp={() => setHelpOpen(true)} onNaarMeta={() => setStap(8)} />}
+        {stap === 8 && <Stap8 onBack={() => setStap(7)} />}
       </div>
 
             {/* ── Verdify footer logo ── */}
