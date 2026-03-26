@@ -1991,31 +1991,32 @@ export default function App() {
       <div style={{
         borderTop: `1px solid ${C.border}`,
         background: C.bgMid,
-        padding: "28px 40px",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        gap: 32,
+        padding: "36px 40px 32px",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        gap: 20,
       }}>
         <div style={{
           background: "#ffffff",
           borderRadius: 14,
-          padding: "14px 36px",
+          padding: "18px 48px",
           display: "flex", alignItems: "center", justifyContent: "center",
           boxShadow: "0 4px 24px rgba(0,0,0,.5)",
+          width: "100%", maxWidth: 600,
         }}>
           <img
             src={VERDIFY_LOGO}
             alt="Verdify"
-            style={{ height: 72, width: "auto", objectFit: "contain", display: "block" }}
+            style={{ height: 80, width: "auto", objectFit: "contain", display: "block" }}
           />
         </div>
-        <div>
-          <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 22, color: C.text, letterSpacing: "-.3px", marginBottom: 4 }}>
+        <div style={{ textAlign: "center", width: "100%", maxWidth: 600 }}>
+          <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 24, color: C.text, letterSpacing: "-.3px", marginBottom: 6 }}>
             Meta Ads Bureau
           </div>
-          <div style={{ fontSize: 12, color: C.muted, fontFamily: font.body, letterSpacing: "1.5px", textTransform: "uppercase" }}>
+          <div style={{ fontSize: 12, color: C.muted, fontFamily: font.body, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 4 }}>
             AI-aangedreven campagne builder
           </div>
-          <div style={{ fontSize: 11, color: C.goudDim, fontFamily: font.body, marginTop: 6, letterSpacing: ".5px" }}>
+          <div style={{ fontSize: 11, color: C.goudDim, fontFamily: font.body, letterSpacing: ".5px" }}>
             Powered by Verdify · verdify.eu
           </div>
         </div>
