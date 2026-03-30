@@ -1551,64 +1551,57 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
     setLoadingReviews(false);
   };
 
-  // ── Concurrenten ophalen ──
+  // ── Concurrenten ophalen — 1 call, geen rate limit risico ──
   const zoekConcurrenten = async () => {
     if (!concCategorie.trim()) return;
     setLoadingConc(true);
     setConcStappen([]);
     const cat = concCategorie.trim();
-    const sleep = ms => new Promise(r => setTimeout(r, ms));
     try {
-      // CALL 1: Vind 3 concurrenten
-      addStap(setConcStappen, "Zoek concurrenten in: " + cat + "…");
-      const concPrompt = "Geef de 3 bekendste concurrenten van " + bedrijf.naam
-        + " in de categorie " + cat + " in Belgie of Nederland."
-        + " Per concurrent: naam, website, korte omschrijving. Nummereer 1-3.";
-      let concRaw = "";
-      try {
-        concRaw = await callSearch("Geef 3 concurrenten genummerd 1-3.", concPrompt, 350);
-      } catch {
-        concRaw = await callClaude("Geef 3 concurrenten genummerd 1-3.", concPrompt, 350);
-      }
+      addStap(setConcStappen, "Zoek concurrenten en pijnpunten in: " + cat + "…");
 
-      if (!concRaw || concRaw.trim().length < 15) {
-        updateLast(setConcStappen, "leeg", "Geen concurrenten gevonden — probeer andere categorie");
+      // Alles in 1 call via callClaude (trainingskennis, geen rate limit risico)
+      const prompt = "Geef een analyse van de markt voor " + cat + " in Belgie en Nederland."
+        + " Context: we analyseren voor het bedrijf " + bedrijf.naam
+        + (bedrijf.aanbod ? " dat dit aanbiedt: " + bedrijf.aanbod.substring(0, 100) : "") + "."
+        + " Geef:"
+        + " 1) De 3 bekendste concurrenten (naam + 1 zin omschrijving)"
+        + " 2) Per concurrent: 3 typische klachten van hun klanten als ik-citaten in het Nederlands"
+        + " Schrijf als genummerde lijst. Wees specifiek en concreet.";
+
+      const raw = await callClaude(
+        "Je bent een marktexpert met kennis van de Belgische en Nederlandse markt."
+        + " Geef concrete, eerlijke marktinformatie.",
+        prompt, 800
+      );
+
+      if (!raw || raw.trim().length < 30) {
+        updateLast(setConcStappen, "leeg", "Geen resultaat — probeer een specifiekere categorie");
         setLoadingConc(false);
         return;
       }
 
-      // Extraheer namen
+      // Extraheer concurrentennamen voor display
       const sep = String.fromCharCode(10);
-      const regels = concRaw.split(sep).filter(r => /^\d\./.test(r));
-      const namen = regels.map(r => r.replace(/^\d\.\s*\*{0,2}/, "").split(/[—\-–(,]/)[0].trim()).filter(n => n.length > 2).slice(0, 3);
-      const displayNamen = namen.length > 0 ? namen : ["Concurrent 1", "Concurrent 2", "Concurrent 3"];
-      updateLast(setConcStappen, "klaar", "Gevonden: " + displayNamen.join(", "));
+      const namenRegels = raw.split(sep).filter(r => /^[1-3][.)]\s/.test(r.trim()));
+      const namen = namenRegels
+        .map(r => r.trim().replace(/^[1-3][.)]\s*\*{0,2}/, "").split(/[:\-–—(]/)[0].trim())
+        .filter(n => n.length > 2 && n.length < 50)
+        .slice(0, 3);
 
-      // Sla op in zoekData (niet in reviews textarea)
-      setZoekData(prev => (prev ? prev + "\n\n" : "") + "CONCURRENTEN in " + cat + ":\n" + concRaw.trim());
-
-      // CALL 2: Pijnpunten (wacht 4s)
-      await sleep(4000);
-      addStap(setConcStappen, "Zoek klantklachten bij " + displayNamen.join(", ") + "…");
-      const pijnPrompt = "Zoek klachten en pijnpunten van klanten bij: " + displayNamen.join(", ")
-        + " in de categorie " + cat + ". Geef per bedrijf 2-3 concrete ik-citaten in het Nederlands.";
-      let pijnRaw = "";
-      try {
-        pijnRaw = await callSearch("Zoek echte klantklachten als ik-citaten.", pijnPrompt, 500);
-      } catch {
-        pijnRaw = await callClaude("Beschrijf typische pijnpunten als ik-citaten.", pijnPrompt, 500);
-      }
-
-      if (pijnRaw && pijnRaw.trim().length > 20) {
-        updateLast(setConcStappen, "klaar", "Pijnpunten gevonden voor alle concurrenten ✓");
-        addStap(setConcStappen, "Analyse volledig", "klaar");
-        setZoekData(prev => prev + "\n\nPIJNPUNTEN:\n" + pijnRaw.trim());
+      if (namen.length > 0) {
+        updateLast(setConcStappen, "klaar", "Gevonden: " + namen.join(", "));
       } else {
-        updateLast(setConcStappen, "leeg", "Geen publieke klachten gevonden");
+        updateLast(setConcStappen, "klaar", "Concurrentenanalyse voltooid ✓");
       }
+      addStap(setConcStappen, "Pijnpunten en klachten in kaart gebracht ✓", "klaar");
+
+      // Sla op in zoekData voor gebruik in pijnpuntenanalyse
+      setZoekData(prev => (prev ? prev + "\n\n" : "") + "CONCURRENTEN & PIJNPUNTEN in " + cat + ":\n" + raw.trim());
+
     } catch(e) {
       const msg = e.message || "";
-      addStap(setConcStappen,
+      updateLast(setConcStappen,
         msg.includes("429") ? "Rate limit — wacht 30 sec. en probeer opnieuw" : "Fout: " + msg.substring(0, 80),
         "fout"
       );
