@@ -1518,126 +1518,113 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
   const zoekReviews = async () => {
     setLoadingReviews(true);
     setReviewStappen([]);
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
     try {
-      // Stap 1: Zoek recensiesites
-      addReviewStap("Zoek naar recensies van " + bedrijf.naam + "…");
-      const sitePrompt = "Welke review-platforms en sociale media zijn het meest relevant om klantreviews te vinden voor een bedrijf als " + bedrijf.naam + (bedrijf.url ? " (" + bedrijf.url + ")" : "") + " in de sector " + (bedrijf.aanbod ? bedrijf.aanbod.substring(0,80) : "professionele dienstverlening") + "? Geef ALLEEN een korte JSON array van 4-5 zoektermen/platforms als strings, geen uitleg.";
-      const sitesRaw = await callSearch("Je bent een marktonderzoeker. Geef output ALLEEN als JSON array van strings.", sitePrompt, 400);
-      const sites = parseJsonSafe(sitesRaw, ["Google reviews", "Facebook reviews", "Trustpilot", "sector forums"]);
-      updateLastReviewStap("klaar", "Controleer: " + (Array.isArray(sites) ? sites.join(", ") : "Google, Facebook, Trustpilot"));
+      // Kies 2 meest relevante platforms — één call, klein
+      addReviewStap("Beste review-platforms bepalen voor " + bedrijf.naam + "…");
+      const sitePrompt = "Welke 2 review-platforms zijn het meest relevant voor " + bedrijf.naam
+        + (bedrijf.url ? " (" + bedrijf.url + ")" : "")
+        + "? Geef ALLEEN een JSON array van 2 platformnamen. Geen uitleg.";
+      const sitesRaw = await callSearch("Geef output ALLEEN als JSON array van 2 strings.", sitePrompt, 150);
+      const sites = parseJsonSafe(sitesRaw, ["Google Reviews", "Trustpilot"]);
+      const platforms = Array.isArray(sites) ? sites.slice(0, 2) : ["Google Reviews", "Trustpilot"];
+      updateLastReviewStap("klaar", "Controleer: " + platforms.join(", "));
 
-      // Stap 2: Verzamel echte reviews per platform
-      const gevondenReviews = [];
-      const platforms = Array.isArray(sites) ? sites.slice(0, 4) : ["Google reviews", "Facebook", "Trustpilot"];
+      const gevonden = [];
       for (const platform of platforms) {
+        await sleep(2000); // wacht 2s tussen calls om rate limit te vermijden
         addReviewStap("Zoek reviews op: " + platform + "…");
-        const revPrompt = "Zoek op " + platform + " naar klantreviews en ervaringen over " + bedrijf.naam + (bedrijf.url ? " (" + bedrijf.url + ")" : "") + ". Rapporteer ALLEEN wat je werkelijk vindt: maximaal 3 concrete citaten of samenvattingen van echte reviews. Als je niets vindt op dit platform, zeg dat dan expliciet.";
-        const revRaw = await callSearch("Je bent een marktonderzoeker. Zoek actief en rapporteer alleen gevonden reviews, geen verzonnen inhoud.", revPrompt, 600);
-        if (revRaw && !revRaw.toLowerCase().includes("niets gevonden") && !revRaw.toLowerCase().includes("geen reviews")) {
-          gevondenReviews.push("📌 " + platform + ":\n" + revRaw.trim());
-          updateLastReviewStap("klaar", "✓ Reviews gevonden op " + platform);
+        const revPrompt = "Zoek op " + platform + " naar klantreviews over " + bedrijf.naam
+          + (bedrijf.url ? " (" + bedrijf.url + ")" : "")
+          + ". Geef maximaal 3 korte citaten of observaties van echte reviews. Zeg eerlijk als je niets vindt.";
+        const revRaw = await callSearch("Zoek actief. Rapporteer alleen gevonden reviews. Max 3 citaten.", revPrompt, 350);
+        const leeg = !revRaw || revRaw.toLowerCase().includes("geen reviews") || revRaw.toLowerCase().includes("niets gevonden") || revRaw.trim().length < 30;
+        if (!leeg) {
+          gevonden.push("📌 " + platform + ":\n" + revRaw.trim());
+          updateLastReviewStap("klaar", "Reviews gevonden op " + platform);
         } else {
-          updateLastReviewStap("leeg", "○ Geen reviews gevonden op " + platform);
+          updateLastReviewStap("leeg", "Geen reviews gevonden op " + platform);
         }
       }
 
-      if (gevondenReviews.length > 0) {
-        addReviewStap("Reviews verwerkt — " + gevondenReviews.length + " bronnen gevonden ✓", "klaar");
-        setReviews(prev => (prev ? prev + "\n\n" : "") + "=== Online gevonden reviews voor " + bedrijf.naam + " ===\n\n" + gevondenReviews.join("\n\n"));
+      if (gevonden.length > 0) {
+        addReviewStap("Klaar — " + gevonden.length + " bronnen gevonden", "klaar");
+        setReviews(prev => (prev ? prev + "\n\n" : "") + "=== Online reviews voor " + bedrijf.naam + " ===\n\n" + gevonden.join("\n\n"));
       } else {
-        addReviewStap("Geen publieke reviews gevonden voor " + bedrijf.naam + ". Vul handmatig in.", "leeg");
+        addReviewStap("Geen publieke reviews gevonden. Vul handmatig in.", "leeg");
       }
     } catch(e) {
-      addReviewStap("Fout bij zoeken: " + e.message, "fout");
+      addReviewStap("Fout: " + (e.message || String(e)), "fout");
     }
     setLoadingReviews(false);
   };
 
-  // Stap 1: Bezoek website om categorie te bepalen
   const bepaalCategorie = async () => {
     setCategorieModus("zoeken");
     setConcStappen([]);
     addConcStap("Website bezoeken om bedrijfscategorie te bepalen" + (bedrijf.url ? ": " + bedrijf.url : "") + "…");
     try {
-      const catPrompt = "Bezoek de website " + (bedrijf.url || "") + " en/of de Facebook-pagina van het bedrijf " + bedrijf.naam
-        + (bedrijf.aanbod ? ". Hun aanbod: " + bedrijf.aanbod.substring(0, 120) : "")
-        + ". Bepaal zo SPECIFIEK mogelijk in welke marktcategorie dit bedrijf actief is."
-        + " Denk aan het concrete product of de dienst, bv. 'installateurs van zonnepanelen, warmtepompen en thuisbatterijen'"
-        + " of 'softwareontwikkeling voor KMO s' of 'boekhouding voor zelfstandigen'."
-        + " Geef ALLEEN de categorie als korte zin van max 12 woorden, geen uitleg, geen aanhalingstekens.";
-      const catRaw = await callSearch(
-        "Je bent een marktanalist. Bezoek de website en geef ALLEEN de marktcategorie als korte zin zonder aanhalingstekens.",
-        catPrompt, 300
-      );
-      const catSchoon = (catRaw || "").trim().replace(/^[\s"'\-•]+|[\s"'\-•]+$/g, "");
-      if (catSchoon && catSchoon.length > 5 && catSchoon.length < 120) {
-        setConcCategorie(catSchoon);
-        updateLastConcStap("klaar", "Categorie gevonden: " + catSchoon);
+      const catPrompt = "Bezoek " + (bedrijf.url || "de website") + " van " + bedrijf.naam
+        + (bedrijf.aanbod ? ". Aanbod: " + bedrijf.aanbod.substring(0, 80) : "")
+        + ". Geef de marktcategorie als korte zin van max 10 woorden, bv. 'installateurs zonnepanelen en warmtepompen'. Geen uitleg, geen aanhalingstekens.";
+      const catRaw = await callSearch("Geef ALLEEN de marktcategorie als korte zin, max 10 woorden.", catPrompt, 120);
+      const cat = (catRaw || "").trim().replace(/^[\s"'\-]+|[\s"'\-]+$/g, "");
+      if (cat && cat.length > 5 && cat.length < 100) {
+        setConcCategorie(cat);
+        updateLastConcStap("klaar", "Categorie gevonden: " + cat);
         setCategorieModus("bevestigd");
       } else {
         updateLastConcStap("leeg", "Categorie niet automatisch bepaald — jouw input nodig");
         setCategorieModus("vragen");
       }
     } catch(e) {
-      updateLastConcStap("fout", "Fout bij ophalen website — jouw input nodig");
+      updateLastConcStap("fout", "Fout bij ophalen — jouw input nodig");
       setCategorieModus("vragen");
     }
   };
 
   const zoekConcurrenten = async () => {
     setLoadingConc(true);
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
     const categorie = concCategorie.trim();
     try {
-      // Zoek concurrenten in de specifieke categorie
+      // Vind 3 concurrenten — kleine prompt
       addConcStap("Zoek concurrenten in: " + categorie + "…");
-      const concPrompt = "Zoek online naar de top 3 directe concurrenten in de marktcategorie "
-        + categorie + " in Belgie of Nederland, vergelijkbaar met " + bedrijf.naam
-        + (bedrijf.url ? " (" + bedrijf.url + ")" : "")
-        + ". Geef ALLEEN een JSON array van 3 objecten met velden naam, url en omschrijving. Geen uitleg.";
-      const concRaw = await callSearch(
-        "Je bent een competitive intelligence expert. Zoek actief online. Geef output ALLEEN als JSON array van objecten met naam, url, omschrijving.",
-        concPrompt, 600
-      );
-      const concurrenten = parseJsonSafe(concRaw, []);
-      const concLijst = Array.isArray(concurrenten) && concurrenten.length > 0
-        ? concurrenten
+      const concPrompt = "Top 3 concurrenten van " + bedrijf.naam + " in categorie: " + categorie
+        + " in Belgie of Nederland. Geef naam, url en omschrijving per concurrent. Alleen JSON.";
+      const concRaw = await callSearch("Geef ALLEEN JSON array van 3 concurrenten.", concPrompt, 250);
+      const lijst = parseJsonSafe(concRaw, []);
+      const concLijst = Array.isArray(lijst) && lijst.length > 0
+        ? lijst.slice(0, 3)
         : [{ naam: "Concurrent A", omschrijving: categorie }, { naam: "Concurrent B", omschrijving: categorie }, { naam: "Concurrent C", omschrijving: categorie }];
-      updateLastConcStap("klaar", "Concurrenten gevonden: " + concLijst.map(c => c.naam || c).join(", "));
+      updateLastConcStap("klaar", "Gevonden: " + concLijst.map(c => c.naam || c).join(", "));
 
-      // Per concurrent pijnpunten ophalen
       const allePijnpunten = [];
-      for (const conc of concLijst.slice(0, 3)) {
-        const concNaam  = typeof conc === "string" ? conc : (conc.naam || "concurrent");
-        const concUrl   = typeof conc === "object" ? (conc.url || "") : "";
-        const concOmschr = typeof conc === "object" ? (conc.omschrijving || "") : "";
-        addConcStap("Zoek klantklachten bij " + concNaam + (concOmschr ? " (" + concOmschr + ")" : "") + "…");
-        const pijnPrompt = "Zoek online naar negatieve reviews, klachten en pijnpunten van klanten bij "
-          + concNaam + (concUrl ? " (" + concUrl + ")" : "")
-          + " in de categorie " + categorie
-          + ". Zoek op Google reviews, Trustpilot, sociale media en forums."
-          + " Geef 3 tot 5 concrete klachten als ik-citaten in het Nederlands. Alleen echte gevonden klachten, niets verzinnen.";
-        const pijnRaw = await callSearch(
-          "Je bent een marktonderzoeker. Zoek actief naar echte klantklachten. Schrijf ze als ik-citaten.",
-          pijnPrompt, 700
-        );
-        if (pijnRaw && pijnRaw.trim().length > 30) {
-          allePijnpunten.push("🏢 " + concNaam + (concOmschr ? " — " + concOmschr : "") + ":\n" + pijnRaw.trim());
-          updateLastConcStap("klaar", "Pijnpunten gevonden voor " + concNaam);
+      for (const conc of concLijst) {
+        await sleep(2500); // wacht 2.5s tussen calls
+        const naam    = typeof conc === "string" ? conc : (conc.naam || "concurrent");
+        const url     = typeof conc === "object" ? (conc.url || "") : "";
+        const omschr  = typeof conc === "object" ? (conc.omschrijving || "") : "";
+        addConcStap("Zoek klachten bij " + naam + (omschr ? " (" + omschr + ")" : "") + "…");
+        const pijnPrompt = "Klantklachten en pijnpunten bij " + naam + (url ? " (" + url + ")" : "")
+          + " in categorie " + categorie + ". Max 4 ik-citaten in het Nederlands. Alleen echte klachten.";
+        const pijnRaw = await callSearch("Zoek klantklachten. Schrijf als ik-citaten. Max 4.", pijnPrompt, 300);
+        if (pijnRaw && pijnRaw.trim().length > 20) {
+          allePijnpunten.push("🏢 " + naam + (omschr ? " — " + omschr : "") + ":\n" + pijnRaw.trim());
+          updateLastConcStap("klaar", "Pijnpunten gevonden voor " + naam);
         } else {
-          updateLastConcStap("leeg", "Geen publieke klachten gevonden voor " + concNaam);
+          updateLastConcStap("leeg", "Geen klachten gevonden voor " + naam);
         }
       }
 
       if (allePijnpunten.length > 0) {
-        addConcStap("Concurrentenanalyse volledig — " + allePijnpunten.length + " bedrijven geanalyseerd", "klaar");
-        setReviews(prev => (prev ? prev + "\n\n" : "")
-          + "=== Pijnpunten bij concurrenten in " + categorie + " ===\n\n"
-          + allePijnpunten.join("\n\n"));
+        addConcStap("Analyse klaar — " + allePijnpunten.length + " bedrijven geanalyseerd", "klaar");
+        setReviews(prev => (prev ? prev + "\n\n" : "") + "=== Pijnpunten concurrenten in " + categorie + " ===\n\n" + allePijnpunten.join("\n\n"));
       } else {
         addConcStap("Geen publieke klachten gevonden. Vul handmatig aan.", "leeg");
       }
     } catch(e) {
-      addConcStap("Fout: " + e.message, "fout");
+      addConcStap("Fout: " + (e.message || String(e)), "fout");
     }
     setLoadingConc(false);
   };
