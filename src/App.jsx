@@ -1625,34 +1625,69 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
   const analyseer = async () => {
     setLoading(true);
     try {
-      const aanbodCtx = bedrijf.aanbod ? bedrijf.aanbod.substring(0, 200) : "";
-      const reviewCtx = reviews && reviews.trim().length > 20 ? reviews.substring(0, 600) : "";
-      const sysprompt = "Je bent copywriting expert. Geef output ALLEEN als JSON array van 10 strings. Geen uitleg.";
-      const prompt = "Bedrijf: " + bedrijf.naam + (aanbodCtx ? ". Aanbod: " + aanbodCtx : "")
-        + (reviewCtx ? ". Klantreviews: " + reviewCtx : "")
-        + ". Genereer 10 specifieke pijnpunten als ik-zinnen (max 15 woorden) voor de klanten van dit bedrijf."
-        + (reviewCtx ? " Baseer op de reviews." : " Gebruik sectorkennis.")
-        + " JSON array van 10 strings:";
-      const raw = await callClaude(sysprompt, prompt, 600);
-      let parsed = parseJsonSafe(raw, null);
-      if (!parsed) {
-        const s = raw ? raw.indexOf("[") : -1;
-        const e = raw ? raw.lastIndexOf("]") : -1;
-        if (s >= 0 && e > s) parsed = parseJsonSafe(raw.substring(s, e + 1), null);
-      }
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        onNext(parsed);
+      const aanbodCtx = bedrijf.aanbod ? bedrijf.aanbod.substring(0, 250) : "";
+      const reviewCtx = reviews && reviews.trim().length > 20 ? reviews.substring(0, 800) : "";
+
+      // Vraag een GENUMMERDE LIJST — veel betrouwbaarder dan JSON
+      const sysprompt = "Je bent een ervaren Meta Ads copywriter en marktexpert."
+        + " Je schrijft altijd in het Nederlands."
+        + " Je geeft output als een genummerde lijst van exact 10 regels, één pijnpunt per regel."
+        + " Geen inleiding, geen uitleg, geen afsluitende tekst. Alleen de 10 genummerde regels.";
+
+      const prompt = "Genereer 10 concrete en emotionele pijnpunten voor de klanten van " + bedrijf.naam + "." + (aanbodCtx ? " Dit bedrijf verkoopt: " + aanbodCtx + "." : "") + (reviewCtx ? " Klantreviews: " + reviewCtx.substring(0, 400) : "") + " Elk pijnpunt: korte ik-zin max 15 woorden, specifiek voor dit type bedrijf." + (reviewCtx ? " Baseer op de reviews." : " Gebruik sectorkennis.") + " Geef ALLEEN de 10 genummerde pijnpunten:"
+      const raw = await callClaude(sysprompt, prompt, 700);
+
+      // Parse genummerde lijst — veel robuuster dan JSON
+      const parseNummeredList = (tekst) => { if (!tekst) return []; const sep = String.fromCharCode(10); return tekst.split(sep).map(r => r.replace(/^[0-9]+[.)]\ */, "").replace(/^[-*]\ */, "").trim()).filter(r => r.length > 5 && r.length < 120); };
+
+      const parsed = parseNummeredList(raw);
+
+      if (parsed.length >= 5) {
+        // Goed resultaat — neem er max 10
+        onNext(parsed.slice(0, 10));
       } else {
-        // Fallback: sector-specific via second call
+        // Probeer nog eens met een nog simpelere prompt
         const raw2 = await callClaude(
-          "Geef output ALLEEN als JSON array van 10 strings.",
-          "10 pijnpunten als ik-zinnen voor klanten van " + bedrijf.naam + (aanbodCtx ? " (" + aanbodCtx + ")" : "") + ". Specifiek voor de sector. JSON array:",
-          400
+          "Je bent copywriter. Geef een genummerde lijst van 10 pijnpunten. Alleen de lijst.",
+          "10 pijnpunten in de ik-vorm voor klanten van een bedrijf dat dit verkoopt: " + (aanbodCtx || bedrijf.naam) + ". Specifiek, emotioneel, max 15 woorden per pijnpunt.",
+          500
         );
-        const p2 = parseJsonSafe(raw2, FALLBACK_PIJNPUNTEN);
-        onNext(Array.isArray(p2) ? p2 : FALLBACK_PIJNPUNTEN);
+        const parsed2 = parseNummeredList(raw2 || "");
+        if (parsed2.length >= 3) {
+          onNext(parsed2.slice(0, 10));
+        } else {
+          // Laatste redmiddel: genereer sector-fallback op basis van aanbod
+          const sector = aanbodCtx.toLowerCase();
+          const sectorFallback = sector.includes("zonnepaneel") || sector.includes("warmtepomp") || sector.includes("energie")
+            ? ["Mijn energiefactuur blijft maar stijgen ondanks mijn zonnepanelen",
+               "Ik weet niet of mijn installatie wel optimaal presteert",
+               "De terugverdientijd van mijn investering is onduidelijk",
+               "Ik mis een duidelijk overzicht van mijn energieopbrengst",
+               "Mijn installateur is onbereikbaar als er een probleem is",
+               "Ik betaal nog altijd te veel aan het net terwijl ik panelen heb",
+               "De premies en subsidies zijn zo ingewikkeld dat ik het opgegeven heb",
+               "Mijn buren halen meer uit hun panelen dan ik",
+               "Ik weet niet of een thuisbatterij de investering waard is",
+               "Na de installatie hoor ik niets meer van mijn installateur"]
+            : sector.includes("bouw") || sector.includes("renovatie") || sector.includes("verbouw")
+            ? ["Mijn verbouwing loopt al maanden vertraging op",
+               "Ik weet nooit wat de eindfactuur zal zijn",
+               "Aannemers komen hun afspraken niet na",
+               "Ik vind geen betrouwbare vakman voor mijn project",
+               "De kwaliteit valt altijd tegen bij goedkopere aannemers",
+               "Mijn huis staat al een jaar in de steigers",
+               "Ik begrijp de offertes niet en betaal te veel",
+               "Na de werken zijn er altijd nog problemen",
+               "Ik durf niemand aan te spreken op hun werk",
+               "De communicatie met mijn aannemer is rampzalig"]
+            : FALLBACK_PIJNPUNTEN;
+          onNext(sectorFallback);
+        }
       }
-    } catch { onNext(FALLBACK_PIJNPUNTEN); }
+    } catch(e) {
+      console.error("Analyseer fout:", e);
+      onNext(FALLBACK_PIJNPUNTEN);
+    }
     finally { setLoading(false); }
   };
 
@@ -2476,4 +2511,4 @@ export default function App() {
       </div>
     </div>
   );
-}
+}"10 pijnpunten in de ik-vorm voor klanten van een bedrijf dat dit verkoopt: " + (aanbodCtx || bedrijf.naam) + ". Specifiek, emotioneel, max 15 woorden per pijnpunt."
