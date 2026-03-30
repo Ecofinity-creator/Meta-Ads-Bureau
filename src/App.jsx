@@ -2013,23 +2013,24 @@ function CombinatieTeksten({ bedrijf, seg, pijnpunt, campagne }) {
   const genereerAds = async () => {
     setLoadingAds(true); setAdsGegenereerd(true);
     try {
-      const raw = await callClaude(
-        "Je bent top Meta Ads copywriter. Schrijf in het Nederlands. Geef output ALLEEN als JSON object, geen uitleg, geen markdown.",
-        `Schrijf 10 advertentieteksten + 10 kopteksten voor Meta Ads.
-Bedrijf: ${bedrijf.naam} | Website: ${bedrijf.url || "N/A"} | Aanbod: ${bedrijf.aanbod}
-Campagne: ${campagne}
-Segment: ${seg.naam} (${seg.leeftijd}, ${seg.geslacht}, ${seg.kenmerken})
-Pijnpunt: "${pijnpunt}"
-STRUCTUUR ELKE TEKST:
-1. Sterke HOOK (scrollstopper via herkenning pijnpunt)
-2. Ombuigen naar interesse in oplossing
-3. Verlangen creëren + USP's puntsgewijs
-4. Verleidelijke CTA passend bij de campagne-insteek
-HOOK VARIATIES (2 teksten per type):
-Hook 1: Emotioneel, Hook 2: Rationeel, Hook 3: Direct probleem, Hook 4: Urgentie, Hook 5: Droom
-JSON: {"teksten":[{"hook_type":"Emotioneel","tekst":"volledige advertentietekst…"}],"kopteksten":["koptekst 1",...]}`,
-        2500
-      );
+      // Genereer advertenties in 2 kleinere calls om rate limit te vermijden
+      const sysprompt = "Je bent Meta Ads copywriter. Schrijf in het Nederlands. Output ALLEEN als JSON, geen uitleg.";
+      const context = "Bedrijf: " + bedrijf.naam + ". Aanbod: " + bedrijf.aanbod.substring(0, 100)
+        + ". Campagne: " + campagne + ". Segment: " + seg.naam + " (" + seg.leeftijd + ", " + seg.geslacht + ")"
+        + ". Pijnpunt: " + pijnpunt;
+
+      // Call 1: 5 advertentieteksten (Emotioneel, Rationeel, Direct probleem, Urgentie, Droom)
+      const prompt1 = context + ". Schrijf 5 Meta Ads advertentieteksten (1 per hook-type: Emotioneel, Rationeel, Direct probleem, Urgentie, Droom). Elke tekst: hook + oplossing + CTA. Geef output als JSON object met veld teksten (array van objecten met hook_type en tekst).";
+      const raw1 = await callClaude(sysprompt, prompt1, 1200);
+      const parsed1 = parseJsonSafe(raw1, { teksten: [] });
+
+      // Call 2: 10 kopteksten (wacht 3s)
+      await new Promise(r => setTimeout(r, 3000));
+      const prompt2 = context + ". Schrijf 10 korte pakkende kopteksten voor Meta Ads (max 40 tekens elk). Geef output als JSON object met veld kopteksten (array van strings).";
+      const raw2 = await callClaude(sysprompt, prompt2, 400);
+      const parsed2 = parseJsonSafe(raw2, { kopteksten: [] });
+
+      const raw = JSON.stringify({ teksten: parsed1.teksten || [], kopteksten: parsed2.kopteksten || [] });
       setAdsRaw(raw); setAds(parseJsonSafe(raw, null));
     } catch (e) { setAdsRaw("Fout: " + e.message); }
     finally { setLoadingAds(false); }
