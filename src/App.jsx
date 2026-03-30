@@ -1655,6 +1655,20 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
     setLoadingConc(false);
   };
 
+  const analyseer = async () => {
+    setLoading(true);
+    try {
+      const raw = await callClaude(
+        "Je bent copywriting expert. Geef output ALLEEN als JSON array van 10 strings, geen uitleg.",
+        "Analyseer deze reviews voor " + bedrijf.naam + ". Reviews: " + (reviews || "(geen reviews)") + ". Geef 10 impactvolle pijnpunten als herkenbare zinnen vanuit de klant. JSON array van 10 strings.",
+        800
+      );
+      const parsed = parseJsonSafe(raw, FALLBACK_PIJNPUNTEN);
+      onNext(Array.isArray(parsed) ? parsed : FALLBACK_PIJNPUNTEN);
+    } catch { onNext(FALLBACK_PIJNPUNTEN); }
+    finally { setLoading(false); }
+  };
+
   const renderStappen = (stappen, kleur) => stappen.length === 0 ? null : (
     <div style={{ background: kleur + "22", border: `1px solid ${kleur}55`, borderRadius: 10, padding: "12px 16px", marginBottom: 12 }}>
       {stappen.map((s, i) => (
