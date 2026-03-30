@@ -2541,4 +2541,4 @@ export default function App() {
       </div>
     </div>
   );
-}"10 pijnpunten in de ik-vorm voor klanten van een bedrijf dat dit verkoopt: " + (aanbodCtx || bedrijf.naam) + ". Specifiek, emotioneel, max 15 woorden per pijnpunt."
+}
