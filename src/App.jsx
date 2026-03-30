@@ -1486,14 +1486,29 @@ function SegmentKaart({ seg }) {
 
 function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
   const [reviews, setReviews] = useState("");
-  const [loadingReviews, setLoadingReviews] = useState(false);
-  const [loadingConc, setLoadingConc] = useState(false);
-  const [reviewsGevonden, setReviewsGevonden] = useState(false);
-  const [concGevonden, setConcGevonden] = useState(false);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [jsonEdit, setJsonEdit] = useState(JSON.stringify(segmenten, null, 2));
   const [jsonErr, setJsonErr] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Progress tracking voor reviews en concurrenten
+  const [reviewStappen, setReviewStappen] = useState([]);
+  const [concStappen, setConcStappen] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [loadingConc, setLoadingConc] = useState(false);
+  // Categorie-input voor concurrentenzoeker
+  const [concCategorie, setConcCategorie] = useState(""); // gevonden of ingevoerd
+  const [categorieModus, setCategorieModus] = useState("idle"); // idle | zoeken | vragen | bevestigd
+
+  const addReviewStap = (tekst, status = "bezig") =>
+    setReviewStappen(prev => [...prev, { tekst, status, id: Date.now() }]);
+  const updateLastReviewStap = (status, tekst) =>
+    setReviewStappen(prev => prev.map((s, i) => i === prev.length - 1 ? { ...s, status, ...(tekst ? { tekst } : {}) } : s));
+
+  const addConcStap = (tekst, status = "bezig") =>
+    setConcStappen(prev => [...prev, { tekst, status, id: Date.now() }]);
+  const updateLastConcStap = (status, tekst) =>
+    setConcStappen(prev => prev.map((s, i) => i === prev.length - 1 ? { ...s, status, ...(tekst ? { tekst } : {}) } : s));
 
   const applyJson = () => {
     try { setSegmenten(JSON.parse(jsonEdit)); setJsonErr(""); setJsonOpen(false); }
@@ -1502,23 +1517,131 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
 
   const zoekReviews = async () => {
     setLoadingReviews(true);
+    setReviewStappen([]);
     try {
-      const prompt = "Zoek online naar echte klantreviews, testimonials en ervaringen over het bedrijf " + bedrijf.naam + (bedrijf.url ? " (website: " + bedrijf.url + ")" : "") + ". Zoek op Google, review-sites, sociale media en forums. Verzamel de werkelijke klachten, complimenten en ervaringen die echte klanten hebben gedeeld. Geef een samenvatting van wat je online vindt als concrete citaten en observaties, zonder zelf iets te verzinnen. Als je niets vindt over dit specifieke bedrijf, zoek dan naar reviews van vergelijkbare bedrijven in dezelfde sector.";
-      const raw = await callSearch("Je bent een marktonderzoeker die echte online reviews verzamelt. Zoek actief op het internet en rapporteer wat je vindt.", prompt, 1200);
-      if (raw) { setReviews(prev => (prev ? prev + "\n\n--- Online gevonden reviews ---\n" : "") + raw); setReviewsGevonden(true); }
-    } catch(e) { console.error(e); }
-    finally { setLoadingReviews(false); }
+      // Stap 1: Zoek recensiesites
+      addReviewStap("Zoek naar recensies van " + bedrijf.naam + "…");
+      const sitePrompt = "Welke review-platforms en sociale media zijn het meest relevant om klantreviews te vinden voor een bedrijf als " + bedrijf.naam + (bedrijf.url ? " (" + bedrijf.url + ")" : "") + " in de sector " + (bedrijf.aanbod ? bedrijf.aanbod.substring(0,80) : "professionele dienstverlening") + "? Geef ALLEEN een korte JSON array van 4-5 zoektermen/platforms als strings, geen uitleg.";
+      const sitesRaw = await callSearch("Je bent een marktonderzoeker. Geef output ALLEEN als JSON array van strings.", sitePrompt, 400);
+      const sites = parseJsonSafe(sitesRaw, ["Google reviews", "Facebook reviews", "Trustpilot", "sector forums"]);
+      updateLastReviewStap("klaar", "Controleer: " + (Array.isArray(sites) ? sites.join(", ") : "Google, Facebook, Trustpilot"));
+
+      // Stap 2: Verzamel echte reviews per platform
+      const gevondenReviews = [];
+      const platforms = Array.isArray(sites) ? sites.slice(0, 4) : ["Google reviews", "Facebook", "Trustpilot"];
+      for (const platform of platforms) {
+        addReviewStap("Zoek reviews op: " + platform + "…");
+        const revPrompt = "Zoek op " + platform + " naar klantreviews en ervaringen over " + bedrijf.naam + (bedrijf.url ? " (" + bedrijf.url + ")" : "") + ". Rapporteer ALLEEN wat je werkelijk vindt: maximaal 3 concrete citaten of samenvattingen van echte reviews. Als je niets vindt op dit platform, zeg dat dan expliciet.";
+        const revRaw = await callSearch("Je bent een marktonderzoeker. Zoek actief en rapporteer alleen gevonden reviews, geen verzonnen inhoud.", revPrompt, 600);
+        if (revRaw && !revRaw.toLowerCase().includes("niets gevonden") && !revRaw.toLowerCase().includes("geen reviews")) {
+          gevondenReviews.push("📌 " + platform + ":\n" + revRaw.trim());
+          updateLastReviewStap("klaar", "✓ Reviews gevonden op " + platform);
+        } else {
+          updateLastReviewStap("leeg", "○ Geen reviews gevonden op " + platform);
+        }
+      }
+
+      if (gevondenReviews.length > 0) {
+        addReviewStap("Reviews verwerkt — " + gevondenReviews.length + " bronnen gevonden ✓", "klaar");
+        setReviews(prev => (prev ? prev + "\n\n" : "") + "=== Online gevonden reviews voor " + bedrijf.naam + " ===\n\n" + gevondenReviews.join("\n\n"));
+      } else {
+        addReviewStap("Geen publieke reviews gevonden voor " + bedrijf.naam + ". Vul handmatig in.", "leeg");
+      }
+    } catch(e) {
+      addReviewStap("Fout bij zoeken: " + e.message, "fout");
+    }
+    setLoadingReviews(false);
+  };
+
+  // Stap 1: Bezoek website om categorie te bepalen
+  const bepaalCategorie = async () => {
+    setCategorieModus("zoeken");
+    setConcStappen([]);
+    addConcStap("Website bezoeken om bedrijfscategorie te bepalen" + (bedrijf.url ? ": " + bedrijf.url : "") + "…");
+    try {
+      const catPrompt = "Bezoek de website " + (bedrijf.url || "") + " en/of de Facebook-pagina van het bedrijf " + bedrijf.naam
+        + (bedrijf.aanbod ? ". Hun aanbod: " + bedrijf.aanbod.substring(0, 120) : "")
+        + ". Bepaal zo SPECIFIEK mogelijk in welke marktcategorie dit bedrijf actief is."
+        + " Denk aan het concrete product of de dienst, bv. 'installateurs van zonnepanelen, warmtepompen en thuisbatterijen'"
+        + " of 'softwareontwikkeling voor KMO s' of 'boekhouding voor zelfstandigen'."
+        + " Geef ALLEEN de categorie als korte zin van max 12 woorden, geen uitleg, geen aanhalingstekens.";
+      const catRaw = await callSearch(
+        "Je bent een marktanalist. Bezoek de website en geef ALLEEN de marktcategorie als korte zin zonder aanhalingstekens.",
+        catPrompt, 300
+      );
+      const catSchoon = (catRaw || "").trim().replace(/^[\s"'\-•]+|[\s"'\-•]+$/g, "");
+      if (catSchoon && catSchoon.length > 5 && catSchoon.length < 120) {
+        setConcCategorie(catSchoon);
+        updateLastConcStap("klaar", "Categorie gevonden: " + catSchoon);
+        setCategorieModus("bevestigd");
+      } else {
+        updateLastConcStap("leeg", "Categorie niet automatisch bepaald — jouw input nodig");
+        setCategorieModus("vragen");
+      }
+    } catch(e) {
+      updateLastConcStap("fout", "Fout bij ophalen website — jouw input nodig");
+      setCategorieModus("vragen");
+    }
   };
 
   const zoekConcurrenten = async () => {
     setLoadingConc(true);
+    const categorie = concCategorie.trim();
     try {
-      const prompt = "Zoek online naar de directe concurrenten van " + bedrijf.naam + (bedrijf.url ? " (website: " + bedrijf.url + ")" : "") + (bedrijf.aanbod ? " die dit aanbieden: " + bedrijf.aanbod.substring(0,150) : "") + ". Zoek op review-sites, forums, sociale media en Google naar klachten en pijnpunten die klanten hebben bij die concurrenten. Geef de top 3 concurrenten met per concurrent hun naam en 3-5 echte klantpijnpunten als concrete citaten in de ik-vorm. Baseer je ALLEEN op wat je online vindt.";
-      const raw = await callSearch("Je bent een competitive intelligence expert. Zoek actief online naar concurrenten en hun klantpijnpunten. Rapporteer alleen wat je werkelijk online vindt.", prompt, 1400);
-      if (raw) { setReviews(prev => (prev ? prev + "\n\n--- Pijnpunten concurrenten (online gevonden) ---\n" : "--- Pijnpunten concurrenten (online gevonden) ---\n") + raw); setConcGevonden(true); }
-    } catch(e) { console.error(e); }
-    finally { setLoadingConc(false); }
+      // Zoek concurrenten in de specifieke categorie
+      addConcStap("Zoek concurrenten in: " + categorie + "…");
+      const concPrompt = "Zoek online naar de top 3 directe concurrenten in de marktcategorie "
+        + categorie + " in Belgie of Nederland, vergelijkbaar met " + bedrijf.naam
+        + (bedrijf.url ? " (" + bedrijf.url + ")" : "")
+        + ". Geef ALLEEN een JSON array van 3 objecten met velden naam, url en omschrijving. Geen uitleg.";
+      const concRaw = await callSearch(
+        "Je bent een competitive intelligence expert. Zoek actief online. Geef output ALLEEN als JSON array van objecten met naam, url, omschrijving.",
+        concPrompt, 600
+      );
+      const concurrenten = parseJsonSafe(concRaw, []);
+      const concLijst = Array.isArray(concurrenten) && concurrenten.length > 0
+        ? concurrenten
+        : [{ naam: "Concurrent A", omschrijving: categorie }, { naam: "Concurrent B", omschrijving: categorie }, { naam: "Concurrent C", omschrijving: categorie }];
+      updateLastConcStap("klaar", "Concurrenten gevonden: " + concLijst.map(c => c.naam || c).join(", "));
+
+      // Per concurrent pijnpunten ophalen
+      const allePijnpunten = [];
+      for (const conc of concLijst.slice(0, 3)) {
+        const concNaam  = typeof conc === "string" ? conc : (conc.naam || "concurrent");
+        const concUrl   = typeof conc === "object" ? (conc.url || "") : "";
+        const concOmschr = typeof conc === "object" ? (conc.omschrijving || "") : "";
+        addConcStap("Zoek klantklachten bij " + concNaam + (concOmschr ? " (" + concOmschr + ")" : "") + "…");
+        const pijnPrompt = "Zoek online naar negatieve reviews, klachten en pijnpunten van klanten bij "
+          + concNaam + (concUrl ? " (" + concUrl + ")" : "")
+          + " in de categorie " + categorie
+          + ". Zoek op Google reviews, Trustpilot, sociale media en forums."
+          + " Geef 3 tot 5 concrete klachten als ik-citaten in het Nederlands. Alleen echte gevonden klachten, niets verzinnen.";
+        const pijnRaw = await callSearch(
+          "Je bent een marktonderzoeker. Zoek actief naar echte klantklachten. Schrijf ze als ik-citaten.",
+          pijnPrompt, 700
+        );
+        if (pijnRaw && pijnRaw.trim().length > 30) {
+          allePijnpunten.push("🏢 " + concNaam + (concOmschr ? " — " + concOmschr : "") + ":\n" + pijnRaw.trim());
+          updateLastConcStap("klaar", "Pijnpunten gevonden voor " + concNaam);
+        } else {
+          updateLastConcStap("leeg", "Geen publieke klachten gevonden voor " + concNaam);
+        }
+      }
+
+      if (allePijnpunten.length > 0) {
+        addConcStap("Concurrentenanalyse volledig — " + allePijnpunten.length + " bedrijven geanalyseerd", "klaar");
+        setReviews(prev => (prev ? prev + "\n\n" : "")
+          + "=== Pijnpunten bij concurrenten in " + categorie + " ===\n\n"
+          + allePijnpunten.join("\n\n"));
+      } else {
+        addConcStap("Geen publieke klachten gevonden. Vul handmatig aan.", "leeg");
+      }
+    } catch(e) {
+      addConcStap("Fout: " + e.message, "fout");
+    }
+    setLoadingConc(false);
   };
+
 
   const analyseer = async () => {
     setLoading(true);
@@ -1533,6 +1656,22 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
     } catch { onNext(FALLBACK_PIJNPUNTEN); }
     finally { setLoading(false); }
   };
+
+  // Progress stap renderer
+  const renderStappen = (stappen, kleur) => stappen.length === 0 ? null : (
+    <div style={{ background: kleur + "22", border: `1px solid ${kleur}55`, borderRadius: 10, padding: "12px 16px", marginBottom: 12 }}>
+      {stappen.map((s, i) => (
+        <div key={s.id || i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "4px 0", fontSize: 13, fontFamily: font.body, color: C.text }}>
+          <span style={{ flexShrink: 0, fontSize: 14 }}>
+            {s.status === "klaar" ? "✅" : s.status === "leeg" ? "⬜" : s.status === "fout" ? "❌" : "⏳"}
+          </span>
+          <span style={{ color: s.status === "klaar" ? "#1a6b1a" : s.status === "leeg" ? C.muted : s.status === "fout" ? "#cc2200" : C.text }}>
+            {s.tekst}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <Card>
@@ -1553,43 +1692,99 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
           </div>
         )}
       </div>
-      {/* ── AI Review opzoeker ── */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-        <button onClick={zoekReviews} disabled={loadingReviews} style={{
+
+      {/* ── AI Review & Concurrent knoppen ── */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+        <button onClick={zoekReviews} disabled={loadingReviews || loadingConc} style={{
           background: loadingReviews ? "#e8f0e8" : "linear-gradient(135deg,#2d7a3a,#4ade80)",
-          border: "none", borderRadius: 9, padding: "9px 18px",
+          border: "none", borderRadius: 9, padding: "10px 20px",
           color: loadingReviews ? C.muted : "#111", fontFamily: font.body, fontWeight: 700,
-          fontSize: 13, cursor: loadingReviews ? "default" : "pointer",
-          display: "flex", alignItems: "center", gap: 7,
+          fontSize: 13, cursor: (loadingReviews || loadingConc) ? "not-allowed" : "pointer",
+          display: "flex", alignItems: "center", gap: 7, opacity: loadingConc ? 0.5 : 1,
         }}>
           {loadingReviews
-            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #2d7a3a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Reviews ophalen…</>
+            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #2d7a3a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Bezig met zoeken…</>
             : "⭐ Reviews & ervaringen ophalen"}
         </button>
-        <button onClick={zoekConcurrenten} disabled={loadingConc} style={{
-          background: loadingConc ? "#edf2fc" : "linear-gradient(135deg,#1e4a8a,#60a5fa)",
-          border: "none", borderRadius: 9, padding: "9px 18px",
-          color: loadingConc ? C.muted : "#fff", fontFamily: font.body, fontWeight: 700,
-          fontSize: 13, cursor: loadingConc ? "default" : "pointer",
-          display: "flex", alignItems: "center", gap: 7,
-        }}>
+        <button
+          onClick={categorieModus === "idle" ? bepaalCategorie : (categorieModus === "bevestigd" ? zoekConcurrenten : undefined)}
+          disabled={loadingReviews || loadingConc || categorieModus === "zoeken" || categorieModus === "vragen"}
+          style={{
+            background: loadingConc ? "#edf2fc" : "linear-gradient(135deg,#1e4a8a,#60a5fa)",
+            border: "none", borderRadius: 9, padding: "10px 20px",
+            color: loadingConc ? C.muted : "#fff", fontFamily: font.body, fontWeight: 700,
+            fontSize: 13, cursor: (loadingReviews || loadingConc || categorieModus === "zoeken" || categorieModus === "vragen") ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", gap: 7, opacity: loadingReviews ? 0.5 : 1,
+          }}>
           {loadingConc
-            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #1e4a8a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Concurrenten zoeken…</>
-            : "🏆 Concurrent pijnpunten ophalen"}
+            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #1e4a8a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Concurrenten analyseren…</>
+            : categorieModus === "zoeken" ? "Categorie bepalen…"
+            : categorieModus === "bevestigd" ? "🏆 Start concurrentenanalyse →"
+            : "🏆 Pijnpunten concurrenten ophalen"}
         </button>
       </div>
-      {reviewsGevonden && (
-        <div style={{ background: "#edf7ed", border: "1px solid #a8d4a8", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 12, color: "#1a4a1a" }}>
-          <strong>✓ Klantreviews gegenereerd</strong> — op basis van sectorkennis. Pas aan naar wens.
+
+      {/* Categorie flow */}
+      {renderStappen(concStappen.filter((_, i) => i === 0), "#1e4a8a")}
+
+      {/* Categorie bevestigd — toon + laat aanpassen */}
+      {categorieModus === "bevestigd" && (
+        <div style={{ background: "#edf2fc", border: "1px solid #a0b8e0", borderRadius: 10, padding: "12px 16px", marginBottom: 12 }}>
+          <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 12, color: "#1e4a8a", letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>
+            🎯 Gevonden categorie — pas aan indien nodig
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              value={concCategorie}
+              onChange={e => setConcCategorie(e.target.value)}
+              style={{ flex: 1, minWidth: 200, padding: "8px 12px", borderRadius: 8, border: "1.5px solid #60a5fa", fontFamily: font.body, fontSize: 14, background: "#fff", outline: "none" }}
+              placeholder="bv. installateurs zonnepanelen en warmtepompen"
+            />
+            <button onClick={() => { setCategorieModus("idle"); setConcStappen([]); setConcCategorie(""); }}
+              style={{ background: "transparent", border: "1px solid #a0b8e0", borderRadius: 7, padding: "7px 12px", color: C.muted, fontSize: 12, cursor: "pointer", fontFamily: font.body }}>
+              ↺ Opnieuw
+            </button>
+          </div>
+          <div style={{ fontSize: 11, color: "#60a5fa", marginTop: 6, fontFamily: font.body }}>
+            Klik op "Start concurrentenanalyse →" om te zoeken in deze categorie.
+          </div>
         </div>
       )}
-      {concGevonden && (
-        <div style={{ background: "#edf2fc", border: "1px solid #a0b8e0", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 12, color: "#1a2a4a" }}>
-          <strong>✓ Concurrentenpijnpunten gegenereerd</strong> — typische klachten voor jouw sector.
+
+      {/* Categorie vragen — input nodig */}
+      {categorieModus === "vragen" && (
+        <div style={{ background: "#fff8e6", border: "1px solid #e0c040", borderRadius: 10, padding: "14px 16px", marginBottom: 12 }}>
+          <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 13, color: "#7a5800", marginBottom: 8 }}>
+            ❓ Welk soort bedrijven zijn jullie concurrenten?
+          </div>
+          <div style={{ fontSize: 12, color: "#7a5800", fontFamily: font.body, marginBottom: 10 }}>
+            Bv: "installateurs van zonnepanelen en warmtepompen" of "boekhouders voor KMO's in België"
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={concCategorie}
+              onChange={e => setConcCategorie(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && concCategorie.trim().length > 5) setCategorieModus("bevestigd"); }}
+              placeholder="Beschrijf de categorie van jullie concurrenten…"
+              style={{ flex: 1, padding: "9px 14px", borderRadius: 8, border: "1.5px solid #e0c040", fontFamily: font.body, fontSize: 14, background: "#fff", outline: "none" }}
+            />
+            <button
+              onClick={() => { if (concCategorie.trim().length > 5) setCategorieModus("bevestigd"); }}
+              disabled={concCategorie.trim().length < 5}
+              style={{ background: concCategorie.trim().length > 5 ? "linear-gradient(135deg,#1e4a8a,#60a5fa)" : "#ccc", border: "none", borderRadius: 8, padding: "9px 16px", color: "#fff", fontFamily: font.body, fontWeight: 700, fontSize: 13, cursor: concCategorie.trim().length > 5 ? "pointer" : "not-allowed" }}>
+              Bevestig →
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Progress stappen reviews */}
+      {renderStappen(reviewStappen, "#2d7a3a")}
+      {/* Progress stappen concurrenten (skip eerste stap die al getoond is) */}
+      {renderStappen(concStappen.filter((_, i) => i > 0), "#1e4a8a")}
+
       <Textarea label="Klantreviews of feedback (optioneel)" value={reviews} onChange={setReviews}
-        placeholder="Plak hier klantreviews, testimonials of feedback — of gebruik de knoppen hierboven om online te zoeken. AI destilleert de pijnpunten…" rows={5} />
+        placeholder="Gevonden reviews verschijnen hier automatisch — of plak zelf tekst. AI destilleert de pijnpunten." rows={6} />
       {loading ? <Loader text="Pijnpunten analyseren…" /> : <Btn onClick={analyseer}>Analyseer pijnpunten →</Btn>}
     </Card>
   );
