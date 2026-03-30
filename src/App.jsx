@@ -1658,14 +1658,43 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
   const analyseer = async () => {
     setLoading(true);
     try {
-      const raw = await callClaude(
-        "Je bent copywriting expert. Geef output ALLEEN als JSON array van 10 strings, geen uitleg.",
-        "Analyseer deze reviews voor " + bedrijf.naam + ". Reviews: " + (reviews || "(geen reviews)") + ". Geef 10 impactvolle pijnpunten als herkenbare zinnen vanuit de klant. JSON array van 10 strings.",
-        800
-      );
-      const parsed = parseJsonSafe(raw, FALLBACK_PIJNPUNTEN);
-      onNext(Array.isArray(parsed) ? parsed : FALLBACK_PIJNPUNTEN);
-    } catch { onNext(FALLBACK_PIJNPUNTEN); }
+      const heeftReviews = reviews && reviews.trim().length > 20;
+      const aanbodContext = bedrijf.aanbod ? bedrijf.aanbod.substring(0, 200) : "";
+      const reviewContext = heeftReviews ? reviews.substring(0, 600) : "(geen reviews ingevoerd)";
+
+      const sysprompt = "Je bent een copywriting expert gespecialiseerd in Meta Ads."
+        + " Geef output ALLEEN als een JSON array van exact 10 strings."
+        + " Elke string is een pijnpunt in de ik-vorm, specifiek voor de sector en doelgroep."
+        + " Geen uitleg, geen nummering, alleen de JSON array.";
+
+      const prompt = "Bedrijf: " + bedrijf.naam + "." + (aanbodContext ? " Wat ze verkopen: " + aanbodContext + "." : "") + " Klantreviews en feedback: " + reviewContext + ". Genereer 10 concrete emotionele pijnpunten die de klanten van dit bedrijf herkennen. Elke pijnpunt: korte ik-zin max 15 woorden, specifiek voor de sector. " + (heeftReviews ? "Baseer op de echte reviews." : "Gebruik sectorkennis.") + " JSON array van 10 strings:";
+
+      const raw = await callClaude(sysprompt, prompt, 600);
+
+      // Try to parse - handle both array and object responses
+      let parsed = parseJsonSafe(raw, null);
+      if (!parsed) {
+        // Try extracting array from text if JSON parse failed
+        const bracketStart = raw ? raw.indexOf("[") : -1;
+        const bracketEnd = raw ? raw.lastIndexOf("]") : -1;
+        if (bracketStart >= 0 && bracketEnd > bracketStart) parsed = parseJsonSafe(raw.substring(bracketStart, bracketEnd + 1), null);
+      }
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        onNext(parsed);
+      } else {
+        // Generate sector-specific fallback from aanbod
+        const fallback = await callClaude(
+          "Geef output ALLEEN als JSON array van 10 strings.",
+          "Genereer 10 pijnpunten in de ik-vorm voor klanten van een bedrijf dat dit aanbiedt: " + (aanbodContext || bedrijf.naam) + ". Specifiek, emotioneel, max 15 woorden per pijnpunt. JSON array:",
+          400
+        );
+        const fallbackParsed = parseJsonSafe(fallback, FALLBACK_PIJNPUNTEN);
+        onNext(Array.isArray(fallbackParsed) ? fallbackParsed : FALLBACK_PIJNPUNTEN);
+      }
+    } catch(e) {
+      console.error("Analyseer fout:", e);
+      onNext(FALLBACK_PIJNPUNTEN);
+    }
     finally { setLoading(false); }
   };
 
