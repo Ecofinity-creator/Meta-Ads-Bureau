@@ -1485,22 +1485,46 @@ function SegmentKaart({ seg }) {
 }
 
 function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
-  const [reviews, setReviews] = useState("");          // wat de gebruiker ziet/invult
-  const [zoekData, setZoekData] = useState("");        // intern: ruwe zoekresultaten voor analyse
+  const [reviews, setReviews] = useState("");
+  const [zoekData, setZoekData] = useState("");
   const [jsonOpen, setJsonOpen] = useState(false);
   const [jsonEdit, setJsonEdit] = useState(JSON.stringify(segmenten, null, 2));
   const [jsonErr, setJsonErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Progress stappen
   const [reviewStappen, setReviewStappen] = useState([]);
   const [concStappen, setConcStappen] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [loadingConc, setLoadingConc] = useState(false);
   const [concOpen, setConcOpen] = useState(false);
-  const [concCategorie, setConcCategorie] = useState(
-    bedrijf.aanbod ? bedrijf.aanbod.substring(0, 80).trim() : ""
-  );
+
+  // Detecteer sector automatisch uit aanbod
+  const detecteerSector = (aanbod) => {
+    const a = (aanbod || "").toLowerCase();
+    if (a.includes("zonnepaneel") || a.includes("warmtepomp") || a.includes("energie") || a.includes("batterij") || a.includes("solar") || a.includes("ecofinity"))
+      return "installateurs zonnepanelen, warmtepompen en thuisbatterijen";
+    if (a.includes("bouw") || a.includes("renovatie") || a.includes("aannemer") || a.includes("construct"))
+      return "aannemers en renovatiebedrijven";
+    if (a.includes("boekhouder") || a.includes("accountant") || a.includes("boekhouding"))
+      return "boekhouders en accountantskantoren voor KMO's";
+    if (a.includes("marketing") || a.includes("reclame") || a.includes("campagne") || a.includes("ads"))
+      return "marketingbureaus en reclameagentschappen";
+    if (a.includes("coach") || a.includes("coaching") || a.includes("training") || a.includes("cursus"))
+      return "business coaches en trainers";
+    if (a.includes("fitness") || a.includes("afslan") || a.includes("sport") || a.includes("gym") || a.includes("be-fit") || a.includes("befit"))
+      return "fitness- en afslankstudio's";
+    if (a.includes("kapper") || a.includes("haar") || a.includes("salon") || a.includes("beauty") || a.includes("schoonheid"))
+      return "kappers en beautysalons";
+    if (a.includes("it ") || a.includes("software") || a.includes("app") || a.includes("website") || a.includes("tech"))
+      return "IT-bedrijven en softwareontwikkelaars";
+    if (a.includes("restaurant") || a.includes("horeca") || a.includes("catering"))
+      return "restaurants en horecazaken";
+    // Generieke fallback: haal 3-5 kernwoorden uit naam en aanbod
+    const kernwoorden = (bedrijf.naam + " " + (bedrijf.aanbod || "")).replace(/\b(bv|nv|bvba|de|het|een|van|voor|met)\b/gi, "").trim().substring(0, 40);
+    return kernwoorden + " sector";
+  };
+
+  const [concCategorie, setConcCategorie] = useState(() => detecteerSector(bedrijf.aanbod));
 
   const addStap = (setter, tekst, status = "bezig") =>
     setter(prev => [...prev, { tekst, status, id: Date.now() + Math.random() }]);
@@ -1519,51 +1543,41 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
     setLoadingReviews(true);
     setReviewStappen([]);
     try {
-      // Stap 1: Google Reviews specifiek zoeken
       addStap(setReviewStappen, "Zoek Google Reviews voor " + bedrijf.naam + "…");
-      const prompt1 = "Zoek op Google naar reviews van " + bedrijf.naam
+      const prompt = "Zoek Google Maps reviews en Facebook aanbevelingen voor " + bedrijf.naam
         + (bedrijf.url ? " (website: " + bedrijf.url + ")" : "")
-        + ". Zoek specifiek naar:"
-        + " 1) Google Maps reviews / Google Bedrijfsprofiel reviews"
-        + " 2) Facebook aanbevelingen"
-        + " Kopieer de exacte tekst van minstens 4 echte klantreviews die je vindt."
-        + " Schrijf elke review op een nieuwe regel beginnend met een streepje (-)."
-        + " Als je geen reviews vindt voor dit specifieke bedrijf, zoek dan naar hoe klanten dit type bedrijf beoordelen.";
-      const raw1 = await callSearch(
-        "Je zoekt naar echte klantreviews. Kopieer de exacte tekst van reviews die je vindt op Google, Facebook of andere platformen. Geen samenvatting, geen meta-commentaar. Alleen de echte citaten, elk op een nieuwe regel met een streepje.",
-        prompt1, 700
+        + ". Zoek op Google naar: \"" + bedrijf.naam + " reviews\" en \"" + bedrijf.naam + " Google Maps\"."
+        + " Kopieer de exacte tekst van minstens 4 echte klantreviews."
+        + " Schrijf ALLEEN de reviewteksten, elk op een nieuwe regel met een streepje (-)."
+        + " Geen samenvatting, geen commentaar, geen uitleg. Alleen de echte citaten.";
+      const raw = await callSearch(
+        "Zoek echte klantreviews op Google Maps en Facebook. Geef ALLEEN de exacte reviewteksten als citaten, elk beginnend met een streepje. Geen meta-commentaar, geen uitleg, geen conclusies.",
+        prompt, 600
       );
 
-      // Verwerk resultaten — filter meta-commentaar eruit
-      const sep = String.fromCharCode(10);
-      const cleanReviews = (tekst) => {
-        if (!tekst) return "";
-        return tekst.split(sep)
-          .filter(r => r.trim().length > 10)
-          // Verwijder regels met meta-commentaar
-          .filter(r => !r.match(/^(conclusie|samenvatting|resultaat|helaas|jammer|geen|niet gevonden|opmerking|noot|let op|disclaimer)/i))
-          .filter(r => !r.match(/^[*][*](conclusie|samenvatting)/i))
-          // Behoud regels die lijken op echte reviews
-          .map(r => r.replace(/^[*]{1,2}|[*]{1,2}$/g, "").trim())
-          .filter(r => r.length > 10)
-          .join(sep);
-      };
+      updateLast(setReviewStappen, "klaar", "Zoekresultaten verwerkt ✓");
 
-      if (raw1 && raw1.trim().length > 30) {
-        const clean1 = cleanReviews(raw1);
-        setZoekData(prev => (prev ? prev + "\n\n" : "") + "REVIEWS " + bedrijf.naam + ":\n" + raw1.trim());
-        if (clean1.length > 20) {
-          setReviews(clean1);
-          updateLast(setReviewStappen, "klaar", "Reviews gevonden en opgeslagen ✓");
+      // Filter: houd alleen regels die lijken op echte reviews (beginnen met - of " of zijn citaten)
+      if (raw && raw.trim().length > 20) {
+        const sep = String.fromCharCode(10);
+        const alleRegels = raw.split(sep).map(r => r.trim()).filter(r => r.length > 10);
+
+        // Filter meta-commentaar eruit
+        const metaPatroon = /^(ik heb gezocht|helaas|jammer|geen.*gevonden|de zoekresultaten|wat ik|op facebook|op google|conclusie|samenvatting|algemene|opmerking|noot|let op|disclaimer|volgen.*zoekopdracht)/i;
+        const echteReviews = alleRegels.filter(r => !metaPatroon.test(r));
+
+        if (echteReviews.length > 0) {
+          setReviews(echteReviews.join("\n"));
+          addStap(setReviewStappen, echteReviews.length + " reviews gevonden en toegevoegd ✓", "klaar");
         } else {
-          updateLast(setReviewStappen, "klaar", "Zoekresultaten opgeslagen voor analyse ✓");
-          // Sla alles op in zoekData
-          setZoekData(prev => (prev ? prev + "\n\n" : "") + raw1.trim());
+          // Sla toch op in zoekData voor analyse, maar niet in textarea
+          setZoekData(prev => (prev ? prev + "\n\n" : "") + "REVIEWS CONTEXT:\n" + raw.trim());
+          addStap(setReviewStappen, "Geen directe citaten — context opgeslagen voor analyse ✓", "klaar");
         }
+        setZoekData(prev => (prev ? prev + "\n\n" : "") + "REVIEWS " + bedrijf.naam + ":\n" + raw.trim());
       } else {
-        updateLast(setReviewStappen, "leeg", "Geen reviews gevonden — vul handmatig in of probeer opnieuw");
+        updateLast(setReviewStappen, "leeg", "Geen reviews gevonden — vul handmatig in");
       }
-      addStap(setReviewStappen, "Klaar ✓", "klaar");
     } catch(e) {
       const msg = e.message || "";
       updateLast(setReviewStappen, "fout",
@@ -1573,7 +1587,7 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
     setLoadingReviews(false);
   };
 
-  // ── Concurrenten ophalen — 1 call, geen rate limit risico ──
+  // ── Concurrenten ophalen — 1 call ──
   const zoekConcurrenten = async () => {
     if (!concCategorie.trim()) return;
     setLoadingConc(true);
@@ -1581,52 +1595,31 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
     const cat = concCategorie.trim();
     try {
       addStap(setConcStappen, "Zoek concurrenten en pijnpunten in: " + cat + "…");
-
-      // Alles in 1 call via callClaude (trainingskennis, geen rate limit risico)
-      const prompt = "Geef een analyse van de markt voor " + cat + " in Belgie en Nederland."
-        + " Context: we analyseren voor het bedrijf " + bedrijf.naam
-        + (bedrijf.aanbod ? " dat dit aanbiedt: " + bedrijf.aanbod.substring(0, 100) : "") + "."
-        + " Geef:"
+      const prompt = "Geef een marktanalyse voor " + cat + " in Belgie en Nederland."
+        + " Context: we analyseren voor " + bedrijf.naam
+        + (bedrijf.aanbod ? " (" + bedrijf.aanbod.substring(0, 80) + ")" : "") + "."
         + " 1) De 3 bekendste concurrenten (naam + 1 zin omschrijving)"
-        + " 2) Per concurrent: 3 typische klachten van hun klanten als ik-citaten in het Nederlands"
-        + " Schrijf als genummerde lijst. Wees specifiek en concreet.";
-
+        + " 2) Per concurrent: 3 typische klachten van klanten als ik-citaten in het Nederlands."
+        + " Schrijf als genummerde lijst. Wees specifiek.";
       const raw = await callClaude(
-        "Je bent een marktexpert met kennis van de Belgische en Nederlandse markt."
-        + " Geef concrete, eerlijke marktinformatie.",
+        "Je bent marktexpert met kennis van de Belgische en Nederlandse markt. Geef concrete marktinformatie.",
         prompt, 800
       );
-
       if (!raw || raw.trim().length < 30) {
         updateLast(setConcStappen, "leeg", "Geen resultaat — probeer een specifiekere categorie");
-        setLoadingConc(false);
-        return;
+        setLoadingConc(false); return;
       }
-
-      // Extraheer concurrentennamen voor display
       const sep = String.fromCharCode(10);
       const namenRegels = raw.split(sep).filter(r => /^[1-3][.)]\s/.test(r.trim()));
       const namen = namenRegels
-        .map(r => r.trim().replace(/^[1-3][.)]\s*\*{0,2}/, "").split(/[:\-–—(]/)[0].trim())
-        .filter(n => n.length > 2 && n.length < 50)
-        .slice(0, 3);
-
-      if (namen.length > 0) {
-        updateLast(setConcStappen, "klaar", "Gevonden: " + namen.join(", "));
-      } else {
-        updateLast(setConcStappen, "klaar", "Concurrentenanalyse voltooid ✓");
-      }
-      addStap(setConcStappen, "Pijnpunten en klachten in kaart gebracht ✓", "klaar");
-
-      // Sla op in zoekData voor gebruik in pijnpuntenanalyse
+        .map(r => r.trim().replace(/^[1-3][.)]\s*[*]{0,2}/, "").split(/[:\-–—(]/)[0].trim())
+        .filter(n => n.length > 2 && n.length < 50).slice(0, 3);
+      updateLast(setConcStappen, "klaar", namen.length > 0 ? "Gevonden: " + namen.join(", ") : "Concurrenten geanalyseerd ✓");
+      addStap(setConcStappen, "Pijnpunten in kaart gebracht ✓", "klaar");
       setZoekData(prev => (prev ? prev + "\n\n" : "") + "CONCURRENTEN & PIJNPUNTEN in " + cat + ":\n" + raw.trim());
-
     } catch(e) {
       const msg = e.message || "";
-      updateLast(setConcStappen,
-        msg.includes("429") ? "Rate limit — wacht 30 sec. en probeer opnieuw" : "Fout: " + msg.substring(0, 80),
-        "fout"
-      );
+      updateLast(setConcStappen, msg.includes("429") ? "Rate limit — wacht 30 sec. en probeer opnieuw" : "Fout: " + msg.substring(0, 80), "fout");
     }
     setLoadingConc(false);
   };
@@ -1636,82 +1629,38 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
     setLoading(true);
     try {
       const aanbodCtx = bedrijf.aanbod ? bedrijf.aanbod.substring(0, 250) : "";
-      // Combineer handmatige reviews + zoekdata voor analyse
       const alleData = [reviews, zoekData].filter(t => t && t.trim().length > 5).join("\n\n").substring(0, 1200);
-
-      const sysprompt = "Je bent een ervaren Meta Ads copywriter."
-        + " Geef ALLEEN een genummerde lijst van exact 10 pijnpunten."
-        + " Geen inleiding, geen uitleg. Alleen de 10 genummerde regels.";
-
+      const sysprompt = "Je bent een ervaren Meta Ads copywriter. Geef ALLEEN een genummerde lijst van exact 10 pijnpunten. Geen inleiding, geen uitleg. Alleen de 10 genummerde regels.";
       const prompt = "Bedrijf: " + bedrijf.naam
         + (aanbodCtx ? ". Verkoopt: " + aanbodCtx : "")
-        + (alleData ? ". Context en reviews:\n" + alleData : "")
+        + (alleData ? ". Context:\n" + alleData : "")
         + "\n\nGenereer 10 SPECIFIEKE pijnpunten voor de klanten van dit bedrijf."
         + " Elke pijnpunt: ik-zin, max 12 woorden, direct over het product of de sector."
-        + (alleData ? " Baseer je op de reviews en context hierboven." : " Gebruik je sectorkennis.")
         + "\n\n1.";
-
       const raw = await callClaude(sysprompt, prompt, 700);
       const rawMet1 = "1." + (raw || "");
-
-      // Parse genummerde lijst
       const sep2 = String.fromCharCode(10);
       const pijnpunten = rawMet1.split(sep2)
         .map(r => r.replace(/^[0-9]+[.)]\s*/, "").replace(/^[-*]\s*/, "").trim())
         .filter(r => r.length > 8 && r.length < 120);
-
-      if (pijnpunten.length >= 5) {
-        onNext(pijnpunten.slice(0, 10));
-        return;
-      }
-
-      // Fallback call als parsing mislukt
+      if (pijnpunten.length >= 5) { onNext(pijnpunten.slice(0, 10)); return; }
       const raw2 = await callClaude(
-        "Geef een genummerde lijst van 10 pijnpunten. Alleen de lijst, geen uitleg.",
+        "Geef een genummerde lijst van 10 pijnpunten. Alleen de lijst.",
         "10 klantpijnpunten als ik-zinnen (max 12 woorden) voor " + (aanbodCtx || bedrijf.naam) + ".\n1.",
         500
       );
-      const p2 = ("1." + (raw2 || "")).split(sep2)
-        .map(r => r.replace(/^[0-9]+[.)]\s*/, "").trim())
-        .filter(r => r.length > 8 && r.length < 120);
-
+      const p2 = ("1." + (raw2 || "")).split(sep2).map(r => r.replace(/^[0-9]+[.)]\s*/, "").trim()).filter(r => r.length > 8 && r.length < 120);
       if (p2.length >= 3) { onNext(p2.slice(0, 10)); return; }
-
-      // Sector fallback
       const s = aanbodCtx.toLowerCase();
       if (s.includes("zonnepaneel") || s.includes("warmtepomp") || s.includes("energie") || s.includes("batterij")) {
-        onNext(["Mijn energiefactuur blijft stijgen ondanks mijn panelen",
-          "Ik weet niet of mijn installatie wel optimaal presteert",
-          "De terugverdientijd van mijn investering is onduidelijk",
-          "Ik mis een duidelijk overzicht van mijn energieopbrengst",
-          "Mijn installateur is onbereikbaar als er iets mis gaat",
-          "Ik betaal nog te veel aan het net terwijl ik panelen heb",
-          "De subsidies zijn zo ingewikkeld dat ik het opgegeven heb",
-          "Ik twijfel of een thuisbatterij de investering waard is",
-          "Na de installatie hoor ik niets meer van mijn leverancier",
-          "Ik weet niet wie ik kan vertrouwen voor eerlijk advies"]);
-      } else if (s.includes("bouw") || s.includes("renovatie") || s.includes("verbouw")) {
-        onNext(["Mijn verbouwing loopt al maanden vertraging op",
-          "Ik weet nooit wat de eindfactuur zal zijn",
-          "Aannemers komen hun afspraken niet na",
-          "Ik vind geen betrouwbare vakman voor mijn project",
-          "Na de werken zijn er altijd nog problemen",
-          "De communicatie met mijn aannemer is rampzalig",
-          "Ik begrijp de offertes niet en betaal te veel",
-          "Mijn project staat al maanden stil zonder uitleg",
-          "Ik durf niemand aan te spreken op slechte kwaliteit",
-          "Elke aannemer geeft een compleet andere prijs"]);
-      } else {
-        onNext(FALLBACK_PIJNPUNTEN);
-      }
-    } catch(e) {
-      console.error("Analyseer:", e);
-      onNext(FALLBACK_PIJNPUNTEN);
-    }
+        onNext(["Mijn energiefactuur blijft stijgen ondanks mijn panelen","Ik weet niet of mijn installatie optimaal presteert","De terugverdientijd van mijn investering is onduidelijk","Ik mis een duidelijk overzicht van mijn energieopbrengst","Mijn installateur is onbereikbaar als er iets misgaat","Ik betaal nog te veel aan het net terwijl ik panelen heb","De subsidies zijn zo ingewikkeld dat ik het opgegeven heb","Ik twijfel of een thuisbatterij de investering waard is","Na de installatie hoor ik niets meer van mijn leverancier","Ik weet niet wie ik kan vertrouwen voor eerlijk advies"]);
+      } else if (s.includes("bouw") || s.includes("renovatie")) {
+        onNext(["Mijn verbouwing loopt al maanden vertraging op","Ik weet nooit wat de eindfactuur zal zijn","Aannemers komen hun afspraken niet na","Ik vind geen betrouwbare vakman","Na de werken zijn er altijd nog problemen","De communicatie met mijn aannemer is rampzalig","Ik begrijp de offertes niet en betaal te veel","Mijn project staat stil zonder uitleg","Ik durf niemand aan te spreken op slechte kwaliteit","Elke aannemer geeft een compleet andere prijs"]);
+      } else { onNext(FALLBACK_PIJNPUNTEN); }
+    } catch(e) { console.error("Analyseer:", e); onNext(FALLBACK_PIJNPUNTEN); }
     finally { setLoading(false); }
   };
 
-  // ── Progress renderer ──
   const renderStappen = (stappen, kleur) => stappen.length === 0 ? null : (
     <div style={{ background: kleur + "12", border: "1px solid " + kleur + "40", borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
       {stappen.map((s, i) => (
@@ -1740,33 +1689,31 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
         {jsonOpen && (
           <div style={{ marginTop: 10 }}>
             <textarea value={jsonEdit} onChange={e => setJsonEdit(e.target.value)} rows={8}
-              style={{ width: "100%", boxSizing: "border-box", padding: 12, borderRadius: 10,
-                border: "1px solid " + (jsonErr ? C.error : C.border),
-                fontFamily: "monospace", fontSize: 12, background: "#f9f6ef", color: "#2a1f0a", resize: "vertical" }} />
+              style={{ width: "100%", boxSizing: "border-box", padding: 12, borderRadius: 10, border: "1px solid " + (jsonErr ? C.error : C.border), fontFamily: "monospace", fontSize: 12, background: "#f9f6ef", color: "#2a1f0a", resize: "vertical" }} />
             {jsonErr && <div style={{ color: C.error, fontSize: 12, marginTop: 4 }}>{jsonErr}</div>}
             <Btn onClick={applyJson} small style={{ marginTop: 8 }}>Toepassen</Btn>
           </div>
         )}
       </div>
 
-      {/* ── Reviews knop + voortgang ── */}
+      {/* Reviews knop */}
       <div style={{ marginBottom: 6 }}>
         <button onClick={zoekReviews} disabled={loadingReviews || loadingConc} style={{
           background: loadingReviews ? C.bgMid : "linear-gradient(135deg,#2d7a3a,#4ade80)",
           border: "none", borderRadius: 9, padding: "10px 20px",
-          color: loadingReviews ? C.muted : "#111",
-          fontFamily: font.body, fontWeight: 700, fontSize: 13,
+          color: loadingReviews ? C.muted : "#111", fontFamily: font.body, fontWeight: 700, fontSize: 13,
           cursor: (loadingReviews || loadingConc) ? "not-allowed" : "pointer",
           display: "inline-flex", alignItems: "center", gap: 7,
         }}>
           {loadingReviews
-            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #2d7a3a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Bezig met zoeken…</>
+            ? <><span style={{ width:13,height:13,border:"2px solid #aaa",borderTop:"2px solid #2d7a3a",borderRadius:"50%",animation:"spin 1s linear infinite",display:"inline-block" }}/> Reviews zoeken…</>
             : "⭐ Reviews & ervaringen ophalen"}
         </button>
       </div>
-      {renderStappen(reviewStappen, "#2d7a3a")}
+      {/* Voortgang reviews — altijd zichtbaar onder de knop */}
+      {reviewStappen.length > 0 && renderStappen(reviewStappen, "#2d7a3a")}
 
-      {/* ── Concurrenten knop + voortgang ── */}
+      {/* Concurrenten knop */}
       <div style={{ marginBottom: 6 }}>
         {!concOpen ? (
           <button onClick={() => setConcOpen(true)} disabled={loadingReviews || loadingConc} style={{
@@ -1778,20 +1725,19 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
           }}>🏆 Pijnpunten concurrenten ophalen</button>
         ) : (
           <div style={{ background: "#edf2fc", border: "1px solid #a0b8e0", borderRadius: 12, padding: "14px 16px" }}>
-            <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 13, color: "#1e4a8a", marginBottom: 6 }}>
+            <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 13, color: "#1e4a8a", marginBottom: 4 }}>
               🎯 In welke categorie zoeken we concurrenten?
             </div>
             <div style={{ fontSize: 12, color: C.muted, fontFamily: font.body, marginBottom: 10 }}>
-              Bv: "installateurs zonnepanelen en warmtepompen" of "boekhouders voor KMO's"
+              Gebaseerd op jouw sector — pas aan indien nodig
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <input
                 value={concCategorie}
                 onChange={e => setConcCategorie(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && !loadingConc && concCategorie.trim().length > 3) zoekConcurrenten(); }}
-                placeholder="Typ de categorie van jullie concurrenten…"
-                style={{ flex: 1, minWidth: 220, padding: "9px 14px", borderRadius: 8,
-                  border: "1.5px solid #60a5fa", fontFamily: font.body, fontSize: 14, background: "#fff", outline: "none" }}
+                placeholder="Bv: installateurs zonnepanelen en warmtepompen"
+                style={{ flex: 1, minWidth: 220, padding: "9px 14px", borderRadius: 8, border: "1.5px solid #60a5fa", fontFamily: font.body, fontSize: 14, background: "#fff", outline: "none" }}
                 autoFocus
               />
               <button onClick={zoekConcurrenten} disabled={loadingConc || concCategorie.trim().length < 3}
@@ -1808,30 +1754,27 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
               </button>
               {!loadingConc && (
                 <button onClick={() => { setConcOpen(false); setConcStappen([]); }}
-                  style={{ background: "transparent", border: "1px solid #a0b8e0", borderRadius: 8, padding: "9px 12px", color: C.muted, fontSize: 12, cursor: "pointer", fontFamily: font.body }}>
-                  ✕
-                </button>
+                  style={{ background: "transparent", border: "1px solid #a0b8e0", borderRadius: 8, padding: "9px 12px", color: C.muted, fontSize: 12, cursor: "pointer", fontFamily: font.body }}>✕</button>
               )}
             </div>
           </div>
         )}
       </div>
-      {renderStappen(concStappen, "#1e4a8a")}
+      {/* Voortgang concurrenten */}
+      {concStappen.length > 0 && renderStappen(concStappen, "#1e4a8a")}
 
-      {/* ── Handmatige reviews textarea ── */}
       <Textarea
         label="Klantreviews of feedback (optioneel)"
         value={reviews}
         onChange={setReviews}
-        placeholder="Gevonden reviews verschijnen hier automatisch — of plak zelf tekst. AI destilleert de pijnpunten."
+        placeholder="Gevonden reviews verschijnen hier — of plak zelf tekst. AI destilleert de pijnpunten."
         rows={5}
       />
       {zoekData && (
-        <div style={{ fontSize: 11, color: C.muted, fontFamily: font.body, marginBottom: 8, marginTop: -8 }}>
-          ℹ️ Zoekresultaten van reviews en concurrenten worden meegenomen in de analyse (niet zichtbaar in het veld hierboven).
+        <div style={{ fontSize: 11, color: C.muted, fontFamily: font.body, marginBottom: 8, marginTop: -6 }}>
+          ℹ️ Zoekresultaten van reviews en concurrenten worden meegenomen in de analyse.
         </div>
       )}
-
       {loading
         ? <Loader text="Pijnpunten analyseren op basis van jouw sector en reviews…" />
         : <Btn onClick={analyseer}>Analyseer pijnpunten →</Btn>
