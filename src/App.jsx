@@ -1421,7 +1421,7 @@ function Stap1({ data, setData, onNext, onHelp }) {
 
 // ─── STAP 2 ─────────────────────────────────────────────────────────────────
 
-function Stap2({ bedrijf, onNext, onHelp }) {
+function Stap2({ bedrijf, onCsvData, onNext, onHelp }) {
   const [csvText, setCsvText] = useState("");
   const [handmatig, setHandmatig] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1431,7 +1431,7 @@ function Stap2({ bedrijf, onNext, onHelp }) {
     const f = e.target.files[0];
     if (!f) return;
     const r = new FileReader();
-    r.onload = ev => setCsvText(ev.target.result);
+    r.onload = ev => { setCsvText(ev.target.result); if (onCsvData) onCsvData(ev.target.result); };
     r.readAsText(f);
   };
 
@@ -1538,84 +1538,72 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
     catch (e) { setJsonErr("Ongeldige JSON: " + e.message); }
   };
 
-  // ── Reviews ophalen — multi-stap: zoek platforms → haal reviews op ──
+  // ── Reviews ophalen — gefaseerde aanpak ──
   const zoekReviews = async () => {
     setLoadingReviews(true);
     setReviewStappen([]);
     const gevondenReviews = [];
+
+    // Helper: is dit een echte review of meta-commentaar?
+    const isEchtReview = (r) => {
+      if (!r || r.length < 15 || r.length > 600) return false;
+      // Reject meta-commentaar
+      const reject = /^(ik heb|ik kan|helaas|jammer|geen |niet |op basis|de zoek|echter|om echte|het spijt|dit zijn|hier zijn|zoekresult|samenvatting|conclusie|algemene|opmerking|noot|let op|disclaimer|reviewtekst|klantreview|beoordelingen|aanbeveling|toegankelijk|individuele|exacte|daadwerkelijk|letterlijk|beschikbaar|zichtbaar|verschijn|directe toegang|specifieke review|pagina van)/i;
+      return !reject.test(r.trim());
+    };
+
     try {
-      // STAP 1: Haal reviews op via gerichte web search
-      addStap(setReviewStappen, "Zoek reviews voor " + bedrijf.naam + "…");
-      // Gebruik twee zoekopdrachten: Google Maps én algemene reviews
-      const zoekterm1 = bedrijf.naam + " reviews beoordelingen";
-      const zoekterm2 = bedrijf.naam + " google maps";
-      const googlePrompt = "Zoek naar reviews en beoordelingen van " + bedrijf.naam
-        + (bedrijf.url ? " (" + bedrijf.url + ")" : "")
-        + ". Zoek op: 1) Google Maps voor " + bedrijf.naam
-        + " 2) " + zoekterm1
-        + " 3) " + zoekterm2
-        + ". Dit bedrijf heeft reviews op Google Maps. Vind die pagina en kopieer minstens 6 reviewteksten letterlijk."
-        + " Schrijf de reviewteksten DIRECT, elk op een nieuwe regel. Geen inleiding. Geen uitleg. Geen commentaar. Alleen de echte reviewteksten.";
-      const googleRaw = await callSearch(
-        "Zoek de Google Maps pagina van dit bedrijf. Kopieer de reviewteksten letterlijk. Output: alleen de reviews zelf, niets anders.",
-        googlePrompt, 800
+      // ── FASE 1: Zoek review-snippets via Google Search ──
+      addStap(setReviewStappen, "Zoek reviews voor " + bedrijf.naam + " via Google…");
+      const fase1Prompt = "Zoek naar: " + bedrijf.naam + " reviews"
+        + (bedrijf.url ? " " + bedrijf.url.replace("https://","").replace("http://","").split("/")[0] : "")
+        + ". Zoek ook naar: " + bedrijf.naam + " ervaringen klanten"
+        + ". Lees de zoekresultaten en kopieer elke reviewtekst die je tegenkomt."
+        + " Dit zijn korte stukjes tekst zoals: 'Zeer professioneel bedrijf, ik ben zeer tevreden'"
+        + " of '5 sterren, geweldige service'."
+        + " Geef ALLEEN de reviewteksten. Start meteen met de eerste review. Geen inleiding.";
+      const raw1 = await callSearch(
+        "Kopieer reviewteksten letterlijk uit de zoekresultaten. Geen uitleg. Geen commentaar. Direct beginnen met de reviews.",
+        fase1Prompt, 800
       );
-
-      // Check of we echte reviews hebben (niet Claude's uitleg)
-      const isEchtReview = (tekst) => {
-        if (!tekst || tekst.length < 8) return false;
-        const metaPatroon = /^(ik heb|ik kan|helaas|jammer|geen|niet|op basis|de zoek|echter|om echte|het spijt|dit zijn|hier zijn|zoekresult|samenvatting|conclusie|algemene|opmerking|noot|disclaimer|reviewtekst|klantreview|beoordelingen|aanbeveling|toegankelijk|individuele|exacte|daadwerkelijk)/i;
-        return !metaPatroon.test(tekst.trim());
-      };
-
-      if (googleRaw && googleRaw.trim().length > 15) {
+      if (raw1) {
         const sep = String.fromCharCode(10);
-        const regels = googleRaw.split(sep).map(r => r.trim()).filter(r => r.length > 8);
-        const echte = regels.filter(isEchtReview);
-        if (echte.length >= 2) {
-          gevondenReviews.push(...echte);
-          updateLast(setReviewStappen, "klaar", echte.length + " Google reviews gevonden ✓");
-        } else {
-          // Google gaf geen bruikbare reviews — probeer Facebook
-          updateLast(setReviewStappen, "leeg", "Geen Google reviews gevonden");
-          // Sla context op voor analyse
-          setZoekData(prev => (prev ? prev + "\n\n" : "") + "GOOGLE CONTEXT " + bedrijf.naam + ":\n" + googleRaw.trim());
-        }
-      } else {
-        updateLast(setReviewStappen, "leeg", "Geen Google reviews gevonden");
+        raw1.split(sep).map(r => r.trim()).filter(isEchtReview).forEach(r => gevondenReviews.push(r));
+        setZoekData(prev => (prev ? prev + "\n\n" : "") + "ZOEKRESULTATEN:\n" + raw1.trim());
       }
+      updateLast(setReviewStappen, gevondenReviews.length > 0 ? "klaar" : "leeg",
+        gevondenReviews.length > 0 ? gevondenReviews.length + " reviews gevonden via Google ✓" : "Geen reviews in zoekresultaten");
 
-      // STAP 2: Zoek Facebook reviews
-      addStap(setReviewStappen, "Zoek Facebook aanbevelingen voor " + bedrijf.naam + "…");
-      const fbPrompt = "Zoek Facebook aanbevelingen voor " + bedrijf.naam + (bedrijf.url ? " (" + bedrijf.url + ")" : "") + ". Zoek op Facebook en Google naar " + bedrijf.naam + " facebook aanbevelingen. Kopieer letterlijk minstens 3 aanbevelingen die klanten schreven. Geef ALLEEN de teksten van de aanbevelingen.";
-      const fbRaw = await callSearch(
-        "Vind Facebook aanbevelingen en kopieer ze letterlijk. Geen uitleg. Alleen de teksten van de aanbevelingen zelf.",
-        fbPrompt, 500
+      // ── FASE 2: Zoek op review-aggregator sites ──
+      addStap(setReviewStappen, "Zoek op Trustpilot, Houzz en reviewsites…");
+      const fase2Prompt = "Zoek op Trustpilot, Yelp, Houzz, Capterra of andere reviewsites naar ervaringen over "
+        + bedrijf.naam
+        + (bedrijf.aanbod ? " (" + bedrijf.aanbod.substring(0,60) + ")" : "")
+        + ". Als je niets vindt voor dit exacte bedrijf, zoek dan naar de meest recente reviews van vergelijkbare bedrijven in hun sector."
+        + " Geef de reviewteksten direct, zonder inleiding.";
+      const raw2 = await callSearch(
+        "Zoek reviewteksten op reviewsites. Kopieer ze letterlijk. Geen uitleg.",
+        fase2Prompt, 600
       );
-
-      if (fbRaw && fbRaw.trim().length > 15) {
+      if (raw2) {
         const sep = String.fromCharCode(10);
-        const fbRegels = fbRaw.split(sep).map(r => r.trim()).filter(r => r.length > 8);
-        const fbEchte = fbRegels.filter(isEchtReview);
-        if (fbEchte.length >= 2) {
-          gevondenReviews.push(...fbEchte);
-          updateLast(setReviewStappen, "klaar", fbEchte.length + " Facebook reviews gevonden ✓");
-        } else {
-          updateLast(setReviewStappen, "leeg", "Geen Facebook reviews gevonden");
-          setZoekData(prev => (prev ? prev + "\n\n" : "") + "FB CONTEXT:\n" + fbRaw.trim());
-        }
-      } else {
-        updateLast(setReviewStappen, "leeg", "Geen Facebook reviews gevonden");
+        raw2.split(sep).map(r => r.trim()).filter(isEchtReview).forEach(r => {
+          if (!gevondenReviews.includes(r)) gevondenReviews.push(r);
+        });
+        setZoekData(prev => (prev ? prev + "\n\n" : "") + "REVIEWSITES:\n" + raw2.trim());
       }
+      updateLast(setReviewStappen, "klaar",
+        gevondenReviews.length > 2 ? "Totaal " + gevondenReviews.length + " reviews verzameld ✓" : "Fase 2 voltooid");
 
-      // Resultaat verwerken
+      // ── RESULTAAT ──
       if (gevondenReviews.length > 0) {
-        setReviews(gevondenReviews.join("\n"));
-        setZoekData(prev => (prev ? prev + "\n\n" : "") + "REVIEWS " + bedrijf.naam + ":\n" + gevondenReviews.join("\n"));
+        const sep = String.fromCharCode(10);
+        setReviews(gevondenReviews.slice(0, 12).join(sep));
         addStap(setReviewStappen, gevondenReviews.length + " reviews opgeslagen ✓", "klaar");
       } else {
-        addStap(setReviewStappen, "Geen reviews gevonden — vul handmatig in of probeer opnieuw", "leeg");
+        addStap(setReviewStappen, "Geen reviews gevonden via web search. Plak ze handmatig hieronder.", "leeg");
       }
+
     } catch(e) {
       const msg = e.message || "";
       updateLast(setReviewStappen, "fout",
@@ -1624,6 +1612,7 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
     }
     setLoadingReviews(false);
   };
+
 
   // ── Concurrenten ophalen — 1 call ──
   const zoekConcurrenten = async () => {
@@ -2435,20 +2424,13 @@ function Stap8({ onBack, onNaarEvaluatie }) {
 
 // ─── STAP 9 — CAMPAGNE EVALUATIE ─────────────────────────────────────────────
 
-function Stap9({ bedrijf, onBack }) {
-  const [csvTekst, setCsvTekst] = useState("");
-  const [handmatig, setHandmatig] = useState("");
+function Stap9({ bedrijf, csvData, onBack }) {
+  const [handmatig, setHandmatig] = useState(csvData || "");
   const [loading, setLoading] = useState(false);
   const [resultaat, setResultaat] = useState(null);
   const [fout, setFout] = useState("");
 
-  const laadCsv = (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const r = new FileReader();
-    r.onload = ev => setCsvTekst(ev.target.result.substring(0, 4000));
-    r.readAsText(f);
-  };
+
 
   const evalueer = async () => {
     const data = (csvTekst || handmatig || "").trim();
@@ -2594,17 +2576,21 @@ function Stap9({ bedrijf, onBack }) {
           📥 Voeg campagnedata toe
         </div>
 
-        {/* CSV upload */}
-        <div style={{ background: C.goudLight, border: `1.5px dashed ${C.borderGold}`, borderRadius: 12, padding: "16px 20px", marginBottom: 14, cursor: "pointer" }}
-          onClick={() => document.getElementById("csv-evaluatie").click()}>
-          <input id="csv-evaluatie" type="file" accept=".csv,.xlsx,.txt" style={{ display: "none" }} onChange={laadCsv} />
-          <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 14, color: C.goud, marginBottom: 4 }}>
-            📂 {csvTekst ? "✓ CSV geladen (" + csvTekst.length + " tekens)" : "CSV exporteren vanuit Meta Ads Manager → uploaden"}
+        {/* CSV info — hergebruikt van stap 2 */}
+        {csvData ? (
+          <div style={{ background: "#f0fff0", border: "1.5px solid #80cc80", borderRadius: 12, padding: "14px 18px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 20 }}>✅</span>
+            <div>
+              <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 14, color: "#1a6b1a" }}>CSV geladen vanuit stap 2</div>
+              <div style={{ fontSize: 12, color: C.muted, fontFamily: font.body }}>{csvData.length} tekens — campagnedata klaar voor analyse</div>
+            </div>
           </div>
-          <div style={{ fontSize: 12, color: C.muted, fontFamily: font.body }}>
-            Advertentiebeheer → Campagnes → Exporteren → Exporteer tabeldata (.csv) — klik hier om te uploaden
+        ) : (
+          <div style={{ background: C.goudLight, border: `1.5px dashed ${C.borderGold}`, borderRadius: 12, padding: "14px 18px", marginBottom: 14 }}>
+            <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 14, color: C.goud, marginBottom: 4 }}>📂 Geen CSV geladen vanuit stap 2</div>
+            <div style={{ fontSize: 12, color: C.muted, fontFamily: font.body }}>Ga terug naar stap 2 om een CSV te uploaden, of plak de campagnedata handmatig hieronder.</div>
           </div>
-        </div>
+        )}
 
         {/* OF handmatig */}
         <div style={{ fontFamily: font.body, fontSize: 12, color: C.muted, textAlign: "center", marginBottom: 10 }}>— of plak campagnedata handmatig —</div>
@@ -2688,6 +2674,7 @@ export default function App() {
   const [campagne, setCampagne] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
   const [stap8Open, setStap8Open] = useState(false);
+  const [csvData, setCsvData] = useState(""); // CSV uit stap 2 hergebruikt in stap 9
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: font.body }}>
@@ -2739,14 +2726,14 @@ export default function App() {
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 80px" }}>
         <ProgressBar stap={stap} />
         {stap === 1 && <Stap1 data={bedrijf} setData={setBedrijf} onNext={() => setStap(2)} onHelp={() => setHelpOpen(true)} />}
-        {stap === 2 && <Stap2 bedrijf={bedrijf} onNext={segs => { setSegmenten(segs); setStap(3); }} onHelp={() => setHelpOpen(true)} />}
+        {stap === 2 && <Stap2 bedrijf={bedrijf} onCsvData={setCsvData} onNext={segs => { setSegmenten(segs); setStap(3); }} onHelp={() => setHelpOpen(true)} />}
         {stap === 3 && <Stap3 bedrijf={bedrijf} segmenten={segmenten} setSegmenten={setSegmenten} onNext={pp => { setPijnpunten(pp); setStap(4); }} onHelp={() => setHelpOpen(true)} />}
         {stap === 4 && <Stap4 pijnpunten={pijnpunten} gekozen={gekozenPijnpunten} setGekozen={setGekozenPijnpunten} onNext={() => setStap(5)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} />}
         {stap === 5 && <Stap5 segmenten={segmenten} pijnpunten={pijnpunten} gekozenPijnpunten={gekozenPijnpunten} combinaties={combinaties} setCombinaties={setCombinaties} onNext={() => setStap(6)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} />}
         {stap === 6 && <Stap6 bedrijf={bedrijf} combinaties={combinaties} segmenten={segmenten} pijnpunten={pijnpunten} onNext={c => { setCampagne(c); setStap(7); }} onBack={() => setStap(5)} onHelp={() => setHelpOpen(true)} />}
         {stap === 7 && <Stap7 bedrijf={bedrijf} segmenten={segmenten} pijnpunten={pijnpunten} combinaties={combinaties} campagne={campagne} onBack={() => setStap(6)} onHelp={() => setHelpOpen(true)} onNaarMeta={() => setStap(8)} />}
         {stap === 8 && <Stap8 onBack={() => setStap(7)} onNaarEvaluatie={() => setStap(9)} />}
-        {stap === 9 && <Stap9 bedrijf={bedrijf} onBack={() => setStap(8)} />}
+        {stap === 9 && <Stap9 bedrijf={bedrijf} csvData={csvData} onBack={() => setStap(8)} />}
       </div>
 
             {/* ── Verdify footer logo ── */}
