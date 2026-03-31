@@ -2433,19 +2433,18 @@ function Stap9({ bedrijf, csvData, onBack }) {
 
 
   const evalueer = async () => {
-    const data = (csvTekst || handmatig || "").trim();
+    const data = (handmatig || csvData || "").trim();
     if (!data) { setFout("Voeg eerst campagnedata toe."); return; }
     setLoading(true); setFout(""); setResultaat(null);
     try {
       const prompt = "Evalueer deze Meta Ads campagnedata voor " + bedrijf.naam + "."
-        + (bedrijf.aanbod ? " Hun aanbod: " + bedrijf.aanbod.substring(0, 100) + "." : "")
-        + " Campagnedata:\n" + data.substring(0, 3000)
-        + "\n\nGeef een concrete evaluatie per campagne:"
-        + "\n1. STOP: campagnes die te duur zijn of niet renderen (kosten > baten, hoge CPC of lage CTR)"
-        + "\n2. OPTIMALISEER: campagnes die potentieel hebben maar bijgestuurd moeten worden"
-        + "\n3. BLIJVEN LOPEN: campagnes die goed presteren"
-        + "\n\nPer campagne: naam, beslissing (STOP/OPTIMALISEER/VERDER), reden (1 zin), concrete actie."
-        + "\nGeef ook een overall advies van 2-3 zinnen over het campagnebudget.";
+        + (bedrijf.aanbod ? " Aanbod: " + bedrijf.aanbod.substring(0, 100) + "." : "")
+        + " Data: " + data.substring(0, 3000)
+        + " Geef evaluatie per advertentie: 1) STOP DIRECT: te duur, geen resultaten"
+        + " 2) OPTIMALISEER: heeft potentieel maar bijsturen"
+        + " 3) BLIJVEN LOPEN: goed presterend"
+        + " Per item: naam, beslissing, reden en concrete actie."
+        + " Sluit af met OVERALL ADVIES over het totale budget.";
 
       const raw = await callClaude(
         "Je bent een Meta Ads expert. Geef een scherpe, eerlijke en concrete evaluatie. Stel campagnes voor om te stoppen als de kosten/baten niet kloppen.",
