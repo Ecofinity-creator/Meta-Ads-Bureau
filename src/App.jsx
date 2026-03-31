@@ -125,7 +125,7 @@ const FALLBACK_PIJNPUNTEN = [
   "Ik wil schalen maar weet niet hoe zonder alles zelf te doen",
 ];
 
-const STAP_NAMEN = ["Bedrijfsinfo", "Doelgroep", "Segmenten & Reviews", "Pijnpunten", "Matrix", "Campagne", "Advertenties", "Meta Setup"];
+const STAP_NAMEN = ["Bedrijfsinfo", "Doelgroep", "Segmenten & Reviews", "Pijnpunten", "Matrix", "Campagne", "Advertenties", "Meta Setup", "Campagne Evaluatie"];
 
 // ─── STATISCHE HELP-INHOUD PER STAP ─────────────────────────────────────────
 
@@ -772,7 +772,7 @@ function ProgressBar({ stap }) {
               }}>
                 {done ? "✓" : n}
               </div>
-              {i < 7 && (
+              {i < 8 && (
                 <div style={{
                   width: 28, height: 2,
                   background: done ? `linear-gradient(90deg, ${C.goud}, ${C.goudBright})` : C.border,
@@ -1519,33 +1519,55 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
     setLoadingReviews(true);
     setReviewStappen([]);
     try {
-      addStap(setReviewStappen, "Zoek reviews en klantprofiel voor " + bedrijf.naam + "…");
-      const prompt = "Zoek online reviews en klantenervaringen voor " + bedrijf.naam
+      // Stap 1: Google Reviews specifiek zoeken
+      addStap(setReviewStappen, "Zoek Google Reviews voor " + bedrijf.naam + "…");
+      const prompt1 = "Zoek op Google naar reviews van " + bedrijf.naam
         + (bedrijf.url ? " (website: " + bedrijf.url + ")" : "")
-        + (bedrijf.aanbod ? " — aanbod: " + bedrijf.aanbod.substring(0, 100) : "")
-        + ". 1) Wie zijn de eindklanten? 2) Wat zijn echte reviews/klachten?"
-        + " Geef: EINDKLANTEN: [beschrijving] | REVIEWS: [citaten]";
-      const raw = await callSearch(
-        "Zoek online reviews. Wees concreet. Geen verzonnen inhoud.",
-        prompt, 600
+        + ". Zoek specifiek naar:"
+        + " 1) Google Maps reviews / Google Bedrijfsprofiel reviews"
+        + " 2) Facebook aanbevelingen"
+        + " Kopieer de exacte tekst van minstens 4 echte klantreviews die je vindt."
+        + " Schrijf elke review op een nieuwe regel beginnend met een streepje (-)."
+        + " Als je geen reviews vindt voor dit specifieke bedrijf, zoek dan naar hoe klanten dit type bedrijf beoordelen.";
+      const raw1 = await callSearch(
+        "Je zoekt naar echte klantreviews. Kopieer de exacte tekst van reviews die je vindt op Google, Facebook of andere platformen. Geen samenvatting, geen meta-commentaar. Alleen de echte citaten, elk op een nieuwe regel met een streepje.",
+        prompt1, 700
       );
-      if (raw && raw.trim().length > 30) {
-        updateLast(setReviewStappen, "klaar", "Klantprofiel en reviews gevonden ✓");
-        // Sla op voor analyse (niet tonen in textarea)
-        setZoekData(prev => prev ? prev + "\n\n" + raw.trim() : raw.trim());
-        // Extraheer alleen de REVIEWS sectie voor het textarea
-        const reviewMatch = raw.match(/REVIEWS?:\s*([\s\S]+)/i);
-        if (reviewMatch && reviewMatch[1].trim().length > 10) {
-          setReviews(prev => prev ? prev + "\n\n" + reviewMatch[1].trim() : reviewMatch[1].trim());
+
+      // Verwerk resultaten — filter meta-commentaar eruit
+      const sep = String.fromCharCode(10);
+      const cleanReviews = (tekst) => {
+        if (!tekst) return "";
+        return tekst.split(sep)
+          .filter(r => r.trim().length > 10)
+          // Verwijder regels met meta-commentaar
+          .filter(r => !r.match(/^(conclusie|samenvatting|resultaat|helaas|jammer|geen|niet gevonden|opmerking|noot|let op|disclaimer)/i))
+          .filter(r => !r.match(/^[*][*](conclusie|samenvatting)/i))
+          // Behoud regels die lijken op echte reviews
+          .map(r => r.replace(/^[*]{1,2}|[*]{1,2}$/g, "").trim())
+          .filter(r => r.length > 10)
+          .join(sep);
+      };
+
+      if (raw1 && raw1.trim().length > 30) {
+        const clean1 = cleanReviews(raw1);
+        setZoekData(prev => (prev ? prev + "\n\n" : "") + "REVIEWS " + bedrijf.naam + ":\n" + raw1.trim());
+        if (clean1.length > 20) {
+          setReviews(clean1);
+          updateLast(setReviewStappen, "klaar", "Reviews gevonden en opgeslagen ✓");
+        } else {
+          updateLast(setReviewStappen, "klaar", "Zoekresultaten opgeslagen voor analyse ✓");
+          // Sla alles op in zoekData
+          setZoekData(prev => (prev ? prev + "\n\n" : "") + raw1.trim());
         }
-        addStap(setReviewStappen, "Klaar — reviews toegevoegd in het veld hieronder ✓", "klaar");
       } else {
-        updateLast(setReviewStappen, "leeg", "Geen publieke reviews gevonden — vul handmatig in");
+        updateLast(setReviewStappen, "leeg", "Geen reviews gevonden — vul handmatig in of probeer opnieuw");
       }
+      addStap(setReviewStappen, "Klaar ✓", "klaar");
     } catch(e) {
       const msg = e.message || "";
       updateLast(setReviewStappen, "fout",
-        msg.includes("429") ? "Rate limit — wacht 30 sec. en probeer opnieuw" : "Fout: " + msg.substring(0, 80)
+        msg.includes("429") ? "Rate limit — wacht 30 sec. en probeer opnieuw" : "Fout: " + msg.substring(0, 100)
       );
     }
     setLoadingReviews(false);
@@ -2354,7 +2376,7 @@ const META_STAPPEN = [
   }
 ];
 
-function Stap8({ onBack }) {
+function Stap8({ onBack, onNaarEvaluatie }) {
   const [open, setOpen] = useState(null);
   return (
     <div>
@@ -2417,9 +2439,207 @@ function Stap8({ onBack }) {
         ))}
       </div>
 
-      <div style={{ marginTop: 20 }}>
+      <div style={{ marginTop: 20, display: "flex", gap: 12, flexWrap: "wrap" }}>
         <button onClick={onBack} style={{ background: C.goudLight, border: `1px solid ${C.borderGold}`, borderRadius: 10, padding: "10px 20px", color: C.goud, fontFamily: font.body, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
           ← Terug naar advertenties
+        </button>
+        <button onClick={onNaarEvaluatie} style={{ background: "linear-gradient(135deg,#c9a84c,#e2bf6a)", border: "none", borderRadius: 10, padding: "10px 20px", color: "#1a1208", fontFamily: font.body, fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}>
+          📊 Evalueer lopende campagnes →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+// ─── STAP 9 — CAMPAGNE EVALUATIE ─────────────────────────────────────────────
+
+function Stap9({ bedrijf, onBack }) {
+  const [csvTekst, setCsvTekst] = useState("");
+  const [handmatig, setHandmatig] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [resultaat, setResultaat] = useState(null);
+  const [fout, setFout] = useState("");
+
+  const laadCsv = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => setCsvTekst(ev.target.result.substring(0, 4000));
+    r.readAsText(f);
+  };
+
+  const evalueer = async () => {
+    const data = (csvTekst || handmatig || "").trim();
+    if (!data) { setFout("Voeg eerst campagnedata toe."); return; }
+    setLoading(true); setFout(""); setResultaat(null);
+    try {
+      const prompt = "Evalueer deze Meta Ads campagnedata voor " + bedrijf.naam + "."
+        + (bedrijf.aanbod ? " Hun aanbod: " + bedrijf.aanbod.substring(0, 100) + "." : "")
+        + " Campagnedata:\n" + data.substring(0, 3000)
+        + "\n\nGeef een concrete evaluatie per campagne:"
+        + "\n1. STOP: campagnes die te duur zijn of niet renderen (kosten > baten, hoge CPC of lage CTR)"
+        + "\n2. OPTIMALISEER: campagnes die potentieel hebben maar bijgestuurd moeten worden"
+        + "\n3. BLIJVEN LOPEN: campagnes die goed presteren"
+        + "\n\nPer campagne: naam, beslissing (STOP/OPTIMALISEER/VERDER), reden (1 zin), concrete actie."
+        + "\nGeef ook een overall advies van 2-3 zinnen over het campagnebudget.";
+
+      const raw = await callClaude(
+        "Je bent een Meta Ads expert. Geef een scherpe, eerlijke en concrete evaluatie. Stel campagnes voor om te stoppen als de kosten/baten niet kloppen.",
+        prompt, 1200
+      );
+      setResultaat(raw);
+    } catch(e) {
+      setFout("Fout: " + (e.message || String(e)).substring(0, 120));
+    }
+    finally { setLoading(false); }
+  };
+
+  // Kleur per beslissing
+  const beslissingsKleur = (tekst) => {
+    const t = tekst.toUpperCase();
+    if (t.includes("STOP")) return { bg: "#fff0f0", border: "#ffaaaa", dot: "#cc2200", label: "STOP" };
+    if (t.includes("OPTIMALISEER")) return { bg: "#fff8e6", border: "#f0c040", dot: "#a06000", label: "OPTIMALISEER" };
+    return { bg: "#f0fff0", border: "#80cc80", dot: "#1a6b1a", label: "VERDER" };
+  };
+
+  // Parse resultaat in blokken per campagne
+  const parseerResultaat = (tekst) => {
+    if (!tekst) return { blokken: [], overall: "" };
+    const sep = String.fromCharCode(10);
+    const regels = tekst.split(sep);
+    const blokken = [];
+    let huidig = null;
+    let overall = "";
+
+    for (const regel of regels) {
+      const r = regel.trim();
+      if (!r) continue;
+      // Zoek naar campagne-blokken
+      if (r.match(/^[•\-\*]?\s*(campagne|camp\.|ad set|advertentie)/i) || r.match(/^\d+\.\s+[A-Z]/)) {
+        if (huidig) blokken.push(huidig);
+        huidig = { titel: r.replace(/^[\d.\-•*\s]+/, ""), beslissing: "", reden: "", actie: "" };
+      } else if (huidig && r.match(/\b(STOP|STOPPEN|STOPZETTEN)\b/i)) {
+        huidig.beslissing = "STOP";
+        huidig.reden = r;
+      } else if (huidig && r.match(/\b(OPTIMALISEER|OPTIMALISEREN|BIJSTUREN)\b/i)) {
+        huidig.beslissing = "OPTIMALISEER";
+        huidig.reden = r;
+      } else if (huidig && r.match(/\b(VERDER|LATEN LOPEN|GOED PRESTEREND|BEHOUDEN)\b/i)) {
+        huidig.beslissing = "VERDER";
+        huidig.reden = r;
+      } else if (r.match(/^(overall|algemeen|conclusie|advies|budget)/i)) {
+        if (huidig) { blokken.push(huidig); huidig = null; }
+        overall = r;
+      } else if (huidig) {
+        huidig.actie = huidig.actie ? huidig.actie + " " + r : r;
+      } else {
+        overall = overall ? overall + " " + r : r;
+      }
+    }
+    if (huidig) blokken.push(huidig);
+    return { blokken, overall };
+  };
+
+  const { blokken, overall } = resultaat ? parseerResultaat(resultaat) : { blokken: [], overall: "" };
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ background: C.card, borderRadius: 18, border: `1px solid ${C.border}`, padding: "28px 32px", boxShadow: C.shadow, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+          <span style={{ fontSize: 28 }}>📊</span>
+          <div>
+            <h2 style={{ fontFamily: font.display, fontWeight: 700, fontSize: 24, margin: 0, color: C.text }}>Campagne Evaluatie</h2>
+            <p style={{ color: C.muted, fontSize: 13, fontFamily: font.body, margin: 0 }}>
+              Analyseer lopende Meta campagnes — AI bepaalt wat rendabel is en wat gestopt moet worden
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Data invoer */}
+      <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, padding: "24px 28px", boxShadow: C.shadow, marginBottom: 16 }}>
+        <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 16 }}>
+          📥 Voeg campagnedata toe
+        </div>
+
+        {/* CSV upload */}
+        <div style={{ background: C.goudLight, border: `1.5px dashed ${C.borderGold}`, borderRadius: 12, padding: "16px 20px", marginBottom: 14, cursor: "pointer" }}
+          onClick={() => document.getElementById("csv-evaluatie").click()}>
+          <input id="csv-evaluatie" type="file" accept=".csv,.xlsx,.txt" style={{ display: "none" }} onChange={laadCsv} />
+          <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 14, color: C.goud, marginBottom: 4 }}>
+            📂 {csvTekst ? "✓ CSV geladen (" + csvTekst.length + " tekens)" : "CSV exporteren vanuit Meta Ads Manager → uploaden"}
+          </div>
+          <div style={{ fontSize: 12, color: C.muted, fontFamily: font.body }}>
+            Advertentiebeheer → Campagnes → Exporteren → Exporteer tabeldata (.csv) — klik hier om te uploaden
+          </div>
+        </div>
+
+        {/* OF handmatig */}
+        <div style={{ fontFamily: font.body, fontSize: 12, color: C.muted, textAlign: "center", marginBottom: 10 }}>— of plak campagnedata handmatig —</div>
+        <textarea
+          value={handmatig}
+          onChange={e => setHandmatig(e.target.value)}
+          rows={6}
+          placeholder={"Campagnenaam | Budget | Bereik | Vertoningen | Klikken | CTR | CPC | Kosten | Conversies | Kosten/resultaat\n\nBv:\nZonnepanelen-lead | €500 | 12.400 | 48.000 | 960 | 2% | €0,52 | €499 | 8 | €62\nWarmtepomp-brand | €300 | 8.200 | 31.000 | 248 | 0,8% | €1,21 | €298 | 2 | €149"}
+          style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 10, border: `1px solid ${C.border}`, fontFamily: "monospace", fontSize: 12, background: "#fafaf8", color: C.text, resize: "vertical" }}
+        />
+
+        {fout && <div style={{ color: "#cc2200", fontSize: 13, fontFamily: font.body, marginTop: 8 }}>{fout}</div>}
+
+        <div style={{ marginTop: 14 }}>
+          {loading
+            ? <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0" }}>
+                <span style={{ width: 18, height: 18, border: "3px solid " + C.border, borderTop: "3px solid " + C.goud, borderRadius: "50%", animation: "spin 1s linear infinite", display: "inline-block" }} />
+                <span style={{ fontFamily: font.body, fontSize: 14, color: C.muted }}>AI analyseert je campagnes…</span>
+              </div>
+            : <button onClick={evalueer} style={{ background: `linear-gradient(135deg,${C.goud},${C.goudBright})`, border: "none", borderRadius: 11, padding: "12px 28px", color: "#1a1208", fontFamily: font.body, fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                📊 Evalueer campagnes
+              </button>
+          }
+        </div>
+      </div>
+
+      {/* Resultaten */}
+      {resultaat && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+          {/* Raw resultaat als er geen blokken zijn */}
+          {blokken.length === 0 ? (
+            <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, padding: "24px 28px", boxShadow: C.shadow }}>
+              <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 12 }}>📋 Evaluatie resultaat</div>
+              <div style={{ fontFamily: font.body, fontSize: 14, color: C.textSoft, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{resultaat}</div>
+            </div>
+          ) : (
+            <>
+              {blokken.map((b, i) => {
+                const kl = beslissingsKleur(b.beslissing || b.titel || "");
+                return (
+                  <div key={i} style={{ background: kl.bg, borderRadius: 14, border: `2px solid ${kl.border}`, padding: "18px 22px", boxShadow: C.shadow }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: kl.dot, flexShrink: 0 }} />
+                      <span style={{ fontFamily: font.body, fontWeight: 800, fontSize: 12, color: kl.dot, letterSpacing: "1.5px", textTransform: "uppercase" }}>{kl.label}</span>
+                      <span style={{ fontFamily: font.display, fontWeight: 700, fontSize: 15, color: C.text }}>{b.titel}</span>
+                    </div>
+                    {b.reden && <div style={{ fontFamily: font.body, fontSize: 13, color: C.textSoft, marginBottom: 6, lineHeight: 1.6 }}>{b.reden}</div>}
+                    {b.actie && <div style={{ fontFamily: font.body, fontSize: 13, color: C.text, background: "rgba(255,255,255,0.6)", borderRadius: 8, padding: "6px 10px", lineHeight: 1.6 }}>💡 {b.actie}</div>}
+                  </div>
+                );
+              })}
+              {overall && (
+                <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.borderGold}`, padding: "18px 22px", boxShadow: C.shadow }}>
+                  <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 13, color: C.goud, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>Overall Advies</div>
+                  <div style={{ fontFamily: font.body, fontSize: 14, color: C.textSoft, lineHeight: 1.75 }}>{overall}</div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      <div style={{ marginTop: 8 }}>
+        <button onClick={onBack} style={{ background: C.goudLight, border: `1px solid ${C.borderGold}`, borderRadius: 10, padding: "10px 20px", color: C.goud, fontFamily: font.body, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+          ← Terug naar Meta Setup
         </button>
       </div>
     </div>
@@ -2495,7 +2715,8 @@ export default function App() {
         {stap === 5 && <Stap5 segmenten={segmenten} pijnpunten={pijnpunten} gekozenPijnpunten={gekozenPijnpunten} combinaties={combinaties} setCombinaties={setCombinaties} onNext={() => setStap(6)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} />}
         {stap === 6 && <Stap6 bedrijf={bedrijf} combinaties={combinaties} segmenten={segmenten} pijnpunten={pijnpunten} onNext={c => { setCampagne(c); setStap(7); }} onBack={() => setStap(5)} onHelp={() => setHelpOpen(true)} />}
         {stap === 7 && <Stap7 bedrijf={bedrijf} segmenten={segmenten} pijnpunten={pijnpunten} combinaties={combinaties} campagne={campagne} onBack={() => setStap(6)} onHelp={() => setHelpOpen(true)} onNaarMeta={() => setStap(8)} />}
-        {stap === 8 && <Stap8 onBack={() => setStap(7)} />}
+        {stap === 8 && <Stap8 onBack={() => setStap(7)} onNaarEvaluatie={() => setStap(9)} />}
+        {stap === 9 && <Stap9 bedrijf={bedrijf} onBack={() => setStap(8)} />}
       </div>
 
             {/* ── Verdify footer logo ── */}
