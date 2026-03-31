@@ -1538,45 +1538,74 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
     catch (e) { setJsonErr("Ongeldige JSON: " + e.message); }
   };
 
-  // ── Reviews ophalen ──
+  // ── Reviews ophalen — multi-stap: zoek platforms → haal reviews op ──
   const zoekReviews = async () => {
     setLoadingReviews(true);
     setReviewStappen([]);
+    const gevondenReviews = [];
     try {
-      addStap(setReviewStappen, "Zoek Google Reviews voor " + bedrijf.naam + "…");
-      const prompt = "Zoek Google Maps reviews en Facebook aanbevelingen voor " + bedrijf.naam
-        + (bedrijf.url ? " (website: " + bedrijf.url + ")" : "")
-        + ". Zoek op Google naar: \"" + bedrijf.naam + " reviews\" en \"" + bedrijf.naam + " Google Maps\"."
-        + " Kopieer de exacte tekst van minstens 4 echte klantreviews."
-        + " Schrijf ALLEEN de reviewteksten, elk op een nieuwe regel met een streepje (-)."
-        + " Geen samenvatting, geen commentaar, geen uitleg. Alleen de echte citaten.";
-      const raw = await callSearch(
-        "Zoek echte klantreviews op Google Maps en Facebook. Geef ALLEEN de exacte reviewteksten als citaten, elk beginnend met een streepje. Geen meta-commentaar, geen uitleg, geen conclusies.",
-        prompt, 600
+      // STAP 1: Zoek Google Maps reviews direct
+      addStap(setReviewStappen, "Zoek Google Maps reviews voor " + bedrijf.naam + "…");
+      const googlePrompt = "Zoek Google Maps reviews voor " + bedrijf.naam + (bedrijf.url ? " (" + bedrijf.url + ")" : "") + ". Zoek op Google naar " + bedrijf.naam + " google maps reviews en " + bedrijf.naam + " beoordelingen. Kopieer letterlijk de tekst van minstens 5 echte klantreviews. Geef ALLEEN de reviewteksten, elk op een nieuwe regel. Absoluut geen uitleg, geen commentaar, geen apologie.";
+      const googleRaw = await callSearch(
+        "Je MOET de Google Maps reviews vinden en kopiëren. Geef UITSLUITEND de reviewteksten. Als je ze vindt: kopieer ze letterlijk. Geen enkel ander woord mag in je antwoord staan.",
+        googlePrompt, 700
       );
 
-      updateLast(setReviewStappen, "klaar", "Zoekresultaten verwerkt ✓");
+      // Check of we echte reviews hebben (niet Claude's uitleg)
+      const isEchtReview = (tekst) => {
+        if (!tekst || tekst.length < 8) return false;
+        const metaPatroon = /^(ik heb|ik kan|helaas|jammer|geen|niet|op basis|de zoek|echter|om echte|het spijt|dit zijn|hier zijn|zoekresult|samenvatting|conclusie|algemene|opmerking|noot|disclaimer|reviewtekst|klantreview|beoordelingen|aanbeveling|toegankelijk|individuele|exacte|daadwerkelijk)/i;
+        return !metaPatroon.test(tekst.trim());
+      };
 
-      // Filter: houd alleen regels die lijken op echte reviews (beginnen met - of " of zijn citaten)
-      if (raw && raw.trim().length > 20) {
+      if (googleRaw && googleRaw.trim().length > 15) {
         const sep = String.fromCharCode(10);
-        const alleRegels = raw.split(sep).map(r => r.trim()).filter(r => r.length > 10);
-
-        // Filter meta-commentaar eruit
-        const metaPatroon = /^(ik heb gezocht|helaas|jammer|geen.*gevonden|de zoekresultaten|wat ik|op facebook|op google|conclusie|samenvatting|algemene|opmerking|noot|let op|disclaimer|volgen.*zoekopdracht)/i;
-        const echteReviews = alleRegels.filter(r => !metaPatroon.test(r));
-
-        if (echteReviews.length > 0) {
-          setReviews(echteReviews.join("\n"));
-          addStap(setReviewStappen, echteReviews.length + " reviews gevonden en toegevoegd ✓", "klaar");
+        const regels = googleRaw.split(sep).map(r => r.trim()).filter(r => r.length > 8);
+        const echte = regels.filter(isEchtReview);
+        if (echte.length >= 2) {
+          gevondenReviews.push(...echte);
+          updateLast(setReviewStappen, "klaar", echte.length + " Google reviews gevonden ✓");
         } else {
-          // Sla toch op in zoekData voor analyse, maar niet in textarea
-          setZoekData(prev => (prev ? prev + "\n\n" : "") + "REVIEWS CONTEXT:\n" + raw.trim());
-          addStap(setReviewStappen, "Geen directe citaten — context opgeslagen voor analyse ✓", "klaar");
+          // Google gaf geen bruikbare reviews — probeer Facebook
+          updateLast(setReviewStappen, "leeg", "Geen Google reviews gevonden");
+          // Sla context op voor analyse
+          setZoekData(prev => (prev ? prev + "\n\n" : "") + "GOOGLE CONTEXT " + bedrijf.naam + ":\n" + googleRaw.trim());
         }
-        setZoekData(prev => (prev ? prev + "\n\n" : "") + "REVIEWS " + bedrijf.naam + ":\n" + raw.trim());
       } else {
-        updateLast(setReviewStappen, "leeg", "Geen reviews gevonden — vul handmatig in");
+        updateLast(setReviewStappen, "leeg", "Geen Google reviews gevonden");
+      }
+
+      // STAP 2: Zoek Facebook reviews
+      addStap(setReviewStappen, "Zoek Facebook aanbevelingen voor " + bedrijf.naam + "…");
+      const fbPrompt = "Zoek Facebook aanbevelingen voor " + bedrijf.naam + (bedrijf.url ? " (" + bedrijf.url + ")" : "") + ". Zoek op Facebook en Google naar " + bedrijf.naam + " facebook aanbevelingen. Kopieer letterlijk minstens 3 aanbevelingen die klanten schreven. Geef ALLEEN de teksten van de aanbevelingen.";
+      const fbRaw = await callSearch(
+        "Vind Facebook aanbevelingen en kopieer ze letterlijk. Geen uitleg. Alleen de teksten van de aanbevelingen zelf.",
+        fbPrompt, 500
+      );
+
+      if (fbRaw && fbRaw.trim().length > 15) {
+        const sep = String.fromCharCode(10);
+        const fbRegels = fbRaw.split(sep).map(r => r.trim()).filter(r => r.length > 8);
+        const fbEchte = fbRegels.filter(isEchtReview);
+        if (fbEchte.length >= 2) {
+          gevondenReviews.push(...fbEchte);
+          updateLast(setReviewStappen, "klaar", fbEchte.length + " Facebook reviews gevonden ✓");
+        } else {
+          updateLast(setReviewStappen, "leeg", "Geen Facebook reviews gevonden");
+          setZoekData(prev => (prev ? prev + "\n\n" : "") + "FB CONTEXT:\n" + fbRaw.trim());
+        }
+      } else {
+        updateLast(setReviewStappen, "leeg", "Geen Facebook reviews gevonden");
+      }
+
+      // Resultaat verwerken
+      if (gevondenReviews.length > 0) {
+        setReviews(gevondenReviews.join("\n"));
+        setZoekData(prev => (prev ? prev + "\n\n" : "") + "REVIEWS " + bedrijf.naam + ":\n" + gevondenReviews.join("\n"));
+        addStap(setReviewStappen, gevondenReviews.length + " reviews opgeslagen ✓", "klaar");
+      } else {
+        addStap(setReviewStappen, "Geen reviews gevonden — vul handmatig in of probeer opnieuw", "leeg");
       }
     } catch(e) {
       const msg = e.message || "";
