@@ -784,7 +784,7 @@ function ProgressBar({ stap }) {
         })}
       </div>
       <div style={{ textAlign: "center", marginTop: 14, fontFamily: font.body, fontSize: 11, fontWeight: 600, color: C.goudDim, letterSpacing: "2px", textTransform: "uppercase" }}>
-        Stap {stap} van 7 &nbsp;·&nbsp; {STAP_NAMEN[stap - 1]}
+        Stap {stap} van {STAP_NAMEN.length} &nbsp;·&nbsp; {STAP_NAMEN[stap - 1]}
       </div>
     </div>
   );
@@ -1544,12 +1544,21 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
     setReviewStappen([]);
     const gevondenReviews = [];
     try {
-      // STAP 1: Zoek Google Maps reviews direct
-      addStap(setReviewStappen, "Zoek Google Maps reviews voor " + bedrijf.naam + "…");
-      const googlePrompt = "Zoek Google Maps reviews voor " + bedrijf.naam + (bedrijf.url ? " (" + bedrijf.url + ")" : "") + ". Zoek op Google naar " + bedrijf.naam + " google maps reviews en " + bedrijf.naam + " beoordelingen. Kopieer letterlijk de tekst van minstens 5 echte klantreviews. Geef ALLEEN de reviewteksten, elk op een nieuwe regel. Absoluut geen uitleg, geen commentaar, geen apologie.";
+      // STAP 1: Haal reviews op via gerichte web search
+      addStap(setReviewStappen, "Zoek reviews voor " + bedrijf.naam + "…");
+      // Gebruik twee zoekopdrachten: Google Maps én algemene reviews
+      const zoekterm1 = bedrijf.naam + " reviews beoordelingen";
+      const zoekterm2 = bedrijf.naam + " google maps";
+      const googlePrompt = "Zoek naar reviews en beoordelingen van " + bedrijf.naam
+        + (bedrijf.url ? " (" + bedrijf.url + ")" : "")
+        + ". Zoek op: 1) Google Maps voor " + bedrijf.naam
+        + " 2) " + zoekterm1
+        + " 3) " + zoekterm2
+        + ". Dit bedrijf heeft reviews op Google Maps. Vind die pagina en kopieer minstens 6 reviewteksten letterlijk."
+        + " Schrijf de reviewteksten DIRECT, elk op een nieuwe regel. Geen inleiding. Geen uitleg. Geen commentaar. Alleen de echte reviewteksten.";
       const googleRaw = await callSearch(
-        "Je MOET de Google Maps reviews vinden en kopiëren. Geef UITSLUITEND de reviewteksten. Als je ze vindt: kopieer ze letterlijk. Geen enkel ander woord mag in je antwoord staan.",
-        googlePrompt, 700
+        "Zoek de Google Maps pagina van dit bedrijf. Kopieer de reviewteksten letterlijk. Output: alleen de reviews zelf, niets anders.",
+        googlePrompt, 800
       );
 
       // Check of we echte reviews hebben (niet Claude's uitleg)
@@ -2475,6 +2484,55 @@ function Stap9({ bedrijf, onBack }) {
     return { bg: "#f0fff0", border: "#80cc80", dot: "#1a6b1a", label: "VERDER" };
   };
 
+  // Render markdown-achtige evaluatietekst met gekleurde blokken
+  const renderMarkdownEval = (tekst) => {
+    if (!tekst) return null;
+    const sep = String.fromCharCode(10);
+    const regels = tekst.split(sep);
+    const elements = [];
+    let huidigType = null; // "stop" | "optimaliseer" | "verder" | null
+    let i = 0;
+    for (const regel of regels) {
+      const r = regel.trim().replace(/[*][*]/g, "").replace(/^[#]+\s*/, "").replace(/^[-]\s*/, "• ");
+      if (!r) { i++; continue; }
+      // Detecteer sectie-headers
+      const isStop = /^STOP/i.test(r);
+      const isOpt  = /^OPTIMALISEER|^BIJSTUREN|^AANPASSEN/i.test(r);
+      const isVerd = /^BLIJVEN|^VERDER|^GOED/i.test(r);
+      const isActies = /^CONCRETE ACTIES|^AANBEVELINGEN/i.test(r);
+      const isOverall = /^OVERALL|^ALGEMEEN|^CONCLUSIE|^BUDGET/i.test(r);
+
+      if (isStop) {
+        huidigType = "stop";
+        elements.push(<div key={i} style={{ display:"flex", alignItems:"center", gap:10, marginTop:16, marginBottom:6 }}><div style={{ width:14,height:14,borderRadius:"50%",background:"#cc2200",flexShrink:0 }}/><span style={{ fontFamily:font.body, fontWeight:800, fontSize:13, color:"#cc2200", textTransform:"uppercase", letterSpacing:"1px" }}>🔴 Stop direct</span></div>);
+      } else if (isOpt) {
+        huidigType = "optimaliseer";
+        elements.push(<div key={i} style={{ display:"flex", alignItems:"center", gap:10, marginTop:16, marginBottom:6 }}><div style={{ width:14,height:14,borderRadius:"50%",background:"#e08000",flexShrink:0 }}/><span style={{ fontFamily:font.body, fontWeight:800, fontSize:13, color:"#e08000", textTransform:"uppercase", letterSpacing:"1px" }}>🟡 Optimaliseer</span></div>);
+      } else if (isVerd) {
+        huidigType = "verder";
+        elements.push(<div key={i} style={{ display:"flex", alignItems:"center", gap:10, marginTop:16, marginBottom:6 }}><div style={{ width:14,height:14,borderRadius:"50%",background:"#1a8a1a",flexShrink:0 }}/><span style={{ fontFamily:font.body, fontWeight:800, fontSize:13, color:"#1a8a1a", textTransform:"uppercase", letterSpacing:"1px" }}>🟢 Blijven lopen</span></div>);
+      } else if (isActies) {
+        huidigType = null;
+        elements.push(<div key={i} style={{ fontFamily:font.body, fontWeight:800, fontSize:13, color:C.goud, textTransform:"uppercase", letterSpacing:"1px", marginTop:20, marginBottom:8 }}>⚡ Concrete acties</div>);
+      } else if (isOverall) {
+        huidigType = null;
+        elements.push(<div key={i} style={{ fontFamily:font.body, fontWeight:800, fontSize:13, color:C.goud, textTransform:"uppercase", letterSpacing:"1px", marginTop:20, marginBottom:8 }}>📊 Overall advies</div>);
+      } else {
+        // Gewone regel — kleur op basis van huidige sectie
+        const bg = huidigType === "stop" ? "#fff0f0" : huidigType === "optimaliseer" ? "#fff8e6" : huidigType === "verder" ? "#f0fff0" : C.goudLight;
+        const col = huidigType === "stop" ? "#7a0000" : huidigType === "optimaliseer" ? "#7a4000" : huidigType === "verder" ? "#004a00" : C.textSoft;
+        const brd = huidigType === "stop" ? "#ffcccc" : huidigType === "optimaliseer" ? "#f0d080" : huidigType === "verder" ? "#80cc80" : C.borderGold;
+        elements.push(
+          <div key={i} style={{ background:bg, border:"1px solid "+brd, borderRadius:8, padding:"8px 14px", marginBottom:6, fontFamily:font.body, fontSize:13, color:col, lineHeight:1.65 }}>
+            {r}
+          </div>
+        );
+      }
+      i++;
+    }
+    return <div>{elements}</div>;
+  };
+
   // Parse resultaat in blokken per campagne
   const parseerResultaat = (tekst) => {
     if (!tekst) return { blokken: [], overall: "" };
@@ -2579,8 +2637,8 @@ function Stap9({ bedrijf, onBack }) {
           {/* Raw resultaat als er geen blokken zijn */}
           {blokken.length === 0 ? (
             <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, padding: "24px 28px", boxShadow: C.shadow }}>
-              <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 12 }}>📋 Evaluatie resultaat</div>
-              <div style={{ fontFamily: font.body, fontSize: 14, color: C.textSoft, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{resultaat}</div>
+              <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 16 }}>📋 Evaluatie resultaat</div>
+              {renderMarkdownEval(resultaat)}
             </div>
           ) : (
             <>
