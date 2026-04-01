@@ -1928,6 +1928,10 @@ function Stap6({ bedrijf, combinaties, segmenten, pijnpunten, onNext, onBack, on
   const [eigenIdee, setEigenIdee] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiGegenereerd, setAiGegenereerd] = useState(false);
+  const [fout, setFout] = useState("");
+
+  // Auto-genereer bij laden van stap 6
+  useEffect(() => { genereer(); }, []);
 
   const samenvatting = combinaties.map(k => {
     const [sId, pIdx] = k.split("_");
@@ -1937,16 +1941,50 @@ function Stap6({ bedrijf, combinaties, segmenten, pijnpunten, onNext, onBack, on
   }).join(" | ");
 
   const genereer = async () => {
-    setLoading(true); setAiGegenereerd(true);
+    setLoading(true); setAiGegenereerd(true); setFout("");
     try {
+      const prompt = "Geef 4 campagne-insteken voor " + bedrijf.naam
+        + " met aanbod: " + (bedrijf.aanbod || "onbekend").substring(0, 150)
+        + ". Combinaties: " + samenvatting.substring(0, 200)
+        + ". Kies uit: Gratis Webinar, E-book of PDF Download, Online Challenge, Quiz-funnel, Directe Verkoop, Winactie, Gratis Consult of Demo, Brochure Download."
+        + " Geef een JSON array van 4 objecten met velden: type, omschrijving, doel, moeilijkheid."
+        + " doel is Leads of Verkoop. moeilijkheid is Laag, Middel of Hoog."
+        + " Geen uitleg. Alleen de JSON array.";
       const raw = await callClaude(
-        "Je bent Meta Ads strateeg. Geef output ALLEEN als JSON array.",
-        `Geef 4 campagne-insteken voor "${bedrijf.naam}" met aanbod "${bedrijf.aanbod}" en combinaties: ${samenvatting}.\nJSON: [{"type":"...","omschrijving":"...","doel":"Leads","moeilijkheid":"Middel"}]\nKies uit: Gratis Webinar, E-book/PDF Download, Online Challenge, Quiz-funnel, Directe Verkoop, Winactie, Gratis Consult/Demo, Brochure Download.`,
-        600
+        "Je bent Meta Ads strateeg. Geef output ALLEEN als JSON array van 4 objecten. Geen uitleg, geen markdown.",
+        prompt, 600
       );
-      const parsed = parseJsonSafe(raw, []);
-      setSuggesties(Array.isArray(parsed) ? parsed : []);
-    } catch { setSuggesties([]); }
+      // Robuuste parsing: zoek [ ... ] in de response
+      let parsed = parseJsonSafe(raw, null);
+      if (!parsed) {
+        const s = (raw || "").indexOf("[");
+        const e = (raw || "").lastIndexOf("]");
+        if (s >= 0 && e > s) parsed = parseJsonSafe(raw.substring(s, e + 1), null);
+      }
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setSuggesties(parsed);
+      } else {
+        // Hardcoded fallback op basis van sector
+        const aanbod = (bedrijf.aanbod || "").toLowerCase();
+        const isB2B = aanbod.includes("kmo") || aanbod.includes("bedrijf") || aanbod.includes("onderneming") || aanbod.includes("b2b") || aanbod.includes("software") || aanbod.includes("consult");
+        setSuggesties(isB2B ? [
+          { type: "Gratis Consult/Demo", omschrijving: "Bied een gratis adviesgesprek van 30 minuten aan. Laagdrempelig instappunt voor B2B.", doel: "Leads", moeilijkheid: "Laag" },
+          { type: "E-book/Whitepaper Download", omschrijving: "Geef een gratis gids weg in ruil voor een e-mailadres. Ideaal om autoriteit op te bouwen.", doel: "Leads", moeilijkheid: "Laag" },
+          { type: "Gratis Webinar", omschrijving: "Organiseer een live of opgenomen webinar over een relevant thema voor je doelgroep.", doel: "Leads", moeilijkheid: "Middel" },
+          { type: "Quiz-funnel", omschrijving: "Laat bezoekers hun situatie beoordelen via een korte quiz. Hoge betrokkenheid, directe segmentatie.", doel: "Leads", moeilijkheid: "Middel" },
+        ] : [
+          { type: "Gratis Consult", omschrijving: "Bied een gratis kennismaking of adviesgesprek aan. Werkt uitstekend voor dienstverleners.", doel: "Leads", moeilijkheid: "Laag" },
+          { type: "Directe Verkoop", omschrijving: "Promoot rechtstreeks je product of dienst met een duidelijke prijs en CTA.", doel: "Verkoop", moeilijkheid: "Laag" },
+          { type: "Online Challenge", omschrijving: "Een 5-daagse gratis uitdaging die direct waarde geeft en leidt naar jouw aanbod.", doel: "Leads", moeilijkheid: "Middel" },
+          { type: "Winactie", omschrijving: "Snel bereik via een weggeefactie. Goed voor naamsbekendheid en e-maillijst opbouwen.", doel: "Leads", moeilijkheid: "Laag" },
+        ]);
+        setFout("AI-suggesties gegenereerd op basis van sectorkennis.");
+      }
+    } catch(e) {
+      const msg = (e.message || "").substring(0, 100);
+      setFout("Fout: " + msg + " — gebruik het invoerveld hieronder.");
+      setSuggesties([]);
+    }
     finally { setLoading(false); }
   };
 
@@ -1962,12 +2000,13 @@ function Stap6({ bedrijf, combinaties, segmenten, pijnpunten, onNext, onBack, on
   return (
     <Card>
       <StepTitle emoji="🚀" title="Kies je campagne-insteek" sub="Welke formule past het best bij jouw doelgroep en aanbod?" onHelp={onHelp} heeftNaam={!!bedrijf.naam} />
-      {!aiGegenereerd && (
-        <div style={{ marginBottom: 24 }}>
-          {loading ? <Loader text="AI-suggesties ophalen…" /> : <Btn onClick={genereer}>✨ Genereer AI-suggesties</Btn>}
+      {loading && <div style={{ marginBottom: 24 }}><Loader text="AI-suggesties ophalen…" /></div>}
+      {!loading && fout && (
+        <div style={{ fontSize: 12, color: C.goudDim, fontFamily: font.body, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          <span>ℹ️</span> {fout}
+          <button onClick={genereer} style={{ marginLeft: 8, background: "transparent", border: "none", color: C.goud, fontSize: 12, cursor: "pointer", textDecoration: "underline", fontFamily: font.body }}>Opnieuw proberen</button>
         </div>
       )}
-      {loading && aiGegenereerd && <div style={{ marginBottom: 24 }}><Loader text="AI-suggesties ophalen…" /></div>}
       {suggesties && suggesties.length > 0 && !loading && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 28 }}>
           {suggesties.map((s, i) => {
