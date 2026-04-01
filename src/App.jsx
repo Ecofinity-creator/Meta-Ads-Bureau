@@ -2839,6 +2839,68 @@ ${html}
   );
 }
 
+
+// ─── CLERK AUTH BRIDGE ────────────────────────────────────────────────────────
+// Geeft het Clerk token door aan de callClaude functie
+
+function ClerkAuthBridge({ children }) {
+  // Probeer Clerk hooks — werkt alleen als ClerkProvider beschikbaar is
+  let getToken = async () => null;
+  let email = "";
+  try {
+    const auth = useAuth();
+    const { user } = useUser();
+    getToken = auth.getToken;
+    email = user?.primaryEmailAddress?.emailAddress || "";
+  } catch {
+    // Clerk niet beschikbaar — geen auth
+  }
+
+  React.useEffect(() => {
+    setAuthFunctions(getToken, () => email);
+  }, [getToken, email]);
+
+  return children;
+}
+
+// ─── LOGIN SCHERM (alleen als Clerk geconfigureerd is) ────────────────────────
+function LoginScherm() {
+  const hasClerk = !!import.meta.env?.VITE_CLERK_PUBLISHABLE_KEY;
+  if (!hasClerk) return null;
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ marginBottom: 32, textAlign: "center" }}>
+        <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 28, color: C.text, marginBottom: 4 }}>Meta Ads Bureau</div>
+        <div style={{ fontSize: 13, color: C.muted, fontFamily: font.body }}>AI-aangedreven campagne builder door Verdify</div>
+      </div>
+      <SignIn routing="hash" afterSignInUrl="/" />
+    </div>
+  );
+}
+
+// ─── SESSIE TELLER BANNER ─────────────────────────────────────────────────────
+function SessieBanner({ sessieInfo }) {
+  if (!sessieInfo) return null;
+  const { gebruikt, limiet, plan } = sessieInfo;
+  const over = limiet - gebruikt;
+  const kleur = over <= 1 ? "#cc2200" : over <= 3 ? "#e08000" : C.goud;
+  return (
+    <div style={{ background: C.bgMid, borderBottom: `1px solid ${C.border}`, padding: "6px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ fontFamily: font.body, fontSize: 11, color: kleur }}>
+        <strong>{gebruikt}/{limiet}</strong> sessies gebruikt dit plan ({plan})
+        {over <= 2 && " — bijna op!"}
+      </div>
+      {over <= 2 && (
+        <a href="mailto:info@verdify.eu?subject=Upgrade Meta Ads Bureau"
+          style={{ fontSize: 11, color: C.goud, fontFamily: font.body, fontWeight: 700, textDecoration: "none" }}>
+          Upgrade →
+        </a>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -2851,9 +2913,22 @@ export default function App() {
   const [campagne, setCampagne] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
   const [stap8Open, setStap8Open] = useState(false);
-  const [csvData, setCsvData] = useState(""); // CSV uit stap 2 hergebruikt in stap 9
+  const [csvData, setCsvData] = useState("");
+  const [sessieInfo, setSessieInfo] = useState(null); // CSV uit stap 2 hergebruikt in stap 9
+
+  // Update sessie info from API responses
+  const handleApiResponse = React.useCallback((data) => {
+    if (data?._sessie) setSessieInfo(data._sessie);
+  }, []);
+
+  const hasClerk = typeof window !== "undefined" && window.__clerk_publishable_key;
 
   return (
+    <ClerkAuthBridge>
+      <SignedOut>
+        <LoginScherm />
+      </SignedOut>
+      <SignedIn>
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: font.body }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap');
@@ -2873,6 +2948,7 @@ export default function App() {
 
       {/* API Key Banner */}
       <ApiKeyBanner />
+      <SessieBanner sessieInfo={sessieInfo} />
 
       {/* Header */}
       <div style={{ background: "linear-gradient(90deg, #e8f0e8 0%, #ece6d8 40%)", borderBottom: `1px solid ${C.border}`, padding: "0 28px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 4px 32px rgba(0,0,0,.5)" }}>
@@ -2948,5 +3024,7 @@ export default function App() {
         </div>
       </div>
     </div>
+      </SignedIn>
+    </ClerkAuthBridge>
   );
 }
