@@ -2603,48 +2603,84 @@ ${html}
     const sep = String.fromCharCode(10);
     const regels = tekst.split(sep);
     const elements = [];
-    let huidigType = null; // "stop" | "optimaliseer" | "verder" | null
-    let i = 0;
-    for (const regel of regels) {
-      const r = regel.trim().replace(/[*][*]/g, "").replace(/^[#]+\s*/, "").replace(/^[-]\s*/, "• ");
-      if (!r) { i++; continue; }
-      // Detecteer sectie-headers
-      const isStop = /^STOP/i.test(r);
-      const isOpt  = /^OPTIMALISEER|^BIJSTUREN|^AANPASSEN/i.test(r);
-      const isVerd = /^BLIJVEN|^VERDER|^GOED/i.test(r);
-      const isActies = /^CONCRETE ACTIES|^AANBEVELINGEN/i.test(r);
-      const isOverall = /^OVERALL|^ALGEMEEN|^CONCLUSIE|^BUDGET/i.test(r);
+    let huidigType = null;
 
-      if (isStop) {
+    const bolKleur = { stop: "#cc2200", opt: "#e08000", verd: "#1a6b1a" };
+    const bgKleur  = { stop: "#fff5f5", opt: "#fffbf0", verd: "#f5fff5", neu: C.goudLight };
+    const brdKleur = { stop: "#ffcccc", opt: "#f0d880", verd: "#aaddaa", neu: C.borderGold };
+    const txtKleur = { stop: "#7a0000", opt: "#5a3000", verd: "#003a00", neu: C.textSoft };
+
+    regels.forEach((regel, i) => {
+      // Strip markdown formatting
+      let r = regel.trim();
+      r = r.replace(/[*]{1,2}([^*]*)[*]{1,2}/g, "$1");
+      r = r.replace(/^[#]+ /, "");
+      r = r.replace(/^[*\-] /, "");
+      if (!r) return;
+
+      // Detecteer sectie-headers op basis van sleutelwoorden
+      const upper = r.toUpperCase();
+      if (upper.startsWith("STOP")) {
         huidigType = "stop";
-        elements.push(<div key={i} style={{ display:"flex", alignItems:"center", gap:10, marginTop:16, marginBottom:6 }}><div style={{ width:14,height:14,borderRadius:"50%",background:"#cc2200",flexShrink:0 }}/><span style={{ fontFamily:font.body, fontWeight:800, fontSize:13, color:"#cc2200", textTransform:"uppercase", letterSpacing:"1px" }}>🔴 Stop direct</span></div>);
-      } else if (isOpt) {
-        huidigType = "optimaliseer";
-        elements.push(<div key={i} style={{ display:"flex", alignItems:"center", gap:10, marginTop:16, marginBottom:6 }}><div style={{ width:14,height:14,borderRadius:"50%",background:"#e08000",flexShrink:0 }}/><span style={{ fontFamily:font.body, fontWeight:800, fontSize:13, color:"#e08000", textTransform:"uppercase", letterSpacing:"1px" }}>🟡 Optimaliseer</span></div>);
-      } else if (isVerd) {
-        huidigType = "verder";
-        elements.push(<div key={i} style={{ display:"flex", alignItems:"center", gap:10, marginTop:16, marginBottom:6 }}><div style={{ width:14,height:14,borderRadius:"50%",background:"#1a8a1a",flexShrink:0 }}/><span style={{ fontFamily:font.body, fontWeight:800, fontSize:13, color:"#1a8a1a", textTransform:"uppercase", letterSpacing:"1px" }}>🟢 Blijven lopen</span></div>);
-      } else if (isActies) {
-        huidigType = null;
-        elements.push(<div key={i} style={{ fontFamily:font.body, fontWeight:800, fontSize:13, color:C.goud, textTransform:"uppercase", letterSpacing:"1px", marginTop:20, marginBottom:8 }}>⚡ Concrete acties</div>);
-      } else if (isOverall) {
-        huidigType = null;
-        elements.push(<div key={i} style={{ fontFamily:font.body, fontWeight:800, fontSize:13, color:C.goud, textTransform:"uppercase", letterSpacing:"1px", marginTop:20, marginBottom:8 }}>📊 Overall advies</div>);
-      } else {
-        // Gewone regel — kleur op basis van huidige sectie
-        const bg = huidigType === "stop" ? "#fff0f0" : huidigType === "optimaliseer" ? "#fff8e6" : huidigType === "verder" ? "#f0fff0" : C.goudLight;
-        const col = huidigType === "stop" ? "#7a0000" : huidigType === "optimaliseer" ? "#7a4000" : huidigType === "verder" ? "#004a00" : C.textSoft;
-        const brd = huidigType === "stop" ? "#ffcccc" : huidigType === "optimaliseer" ? "#f0d080" : huidigType === "verder" ? "#80cc80" : C.borderGold;
         elements.push(
-          <div key={i} style={{ background:bg, border:"1px solid "+brd, borderRadius:8, padding:"8px 14px", marginBottom:6, fontFamily:font.body, fontSize:13, color:col, lineHeight:1.65 }}>
-            {r}
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0 8px" }}>
+            <div style={{ width: 14, height: 14, borderRadius: "50%", background: "#cc2200", flexShrink: 0 }} />
+            <span style={{ fontFamily: font.body, fontWeight: 800, fontSize: 12, color: "#cc2200", textTransform: "uppercase", letterSpacing: "1.5px" }}>STOP DIRECT</span>
+          </div>
+        );
+      } else if (upper.startsWith("OPTIMALISEER") || upper.startsWith("BIJSTUREN")) {
+        huidigType = "opt";
+        elements.push(
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0 8px" }}>
+            <div style={{ width: 14, height: 14, borderRadius: "50%", background: "#e08000", flexShrink: 0 }} />
+            <span style={{ fontFamily: font.body, fontWeight: 800, fontSize: 12, color: "#e08000", textTransform: "uppercase", letterSpacing: "1.5px" }}>OPTIMALISEER</span>
+          </div>
+        );
+      } else if (upper.startsWith("BLIJVEN") || upper.startsWith("VERDER") || upper.startsWith("GOED PRESTER")) {
+        huidigType = "verd";
+        elements.push(
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0 8px" }}>
+            <div style={{ width: 14, height: 14, borderRadius: "50%", background: "#1a6b1a", flexShrink: 0 }} />
+            <span style={{ fontFamily: font.body, fontWeight: 800, fontSize: 12, color: "#1a6b1a", textTransform: "uppercase", letterSpacing: "1.5px" }}>BLIJVEN LOPEN</span>
+          </div>
+        );
+      } else if (upper.startsWith("CONCRETE ACTIE") || upper.startsWith("AANBEVELING")) {
+        huidigType = null;
+        elements.push(
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0 8px" }}>
+            <span style={{ fontFamily: font.body, fontWeight: 800, fontSize: 12, color: C.goud, textTransform: "uppercase", letterSpacing: "1.5px" }}>⚡ CONCRETE ACTIES</span>
+          </div>
+        );
+      } else if (upper.startsWith("OVERALL") || upper.startsWith("ALGEMEEN") || upper.startsWith("CONCLUSIE") || upper.startsWith("BUDGET")) {
+        huidigType = null;
+        elements.push(
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0 8px" }}>
+            <span style={{ fontFamily: font.body, fontWeight: 800, fontSize: 12, color: C.goud, textTransform: "uppercase", letterSpacing: "1.5px" }}>📊 OVERALL ADVIES</span>
+          </div>
+        );
+      } else {
+        // Gewone inhoud — kleur op basis van huidige sectie
+        const t = huidigType || "neu";
+        elements.push(
+          <div key={i} style={{
+            background: bgKleur[t] || bgKleur.neu,
+            border: "1px solid " + (brdKleur[t] || brdKleur.neu),
+            borderRadius: 8,
+            padding: "8px 14px",
+            marginBottom: 5,
+            fontFamily: font.body,
+            fontSize: 13,
+            color: txtKleur[t] || txtKleur.neu,
+            lineHeight: 1.65,
+          }}>
+            {huidigType === "stop" ? "🔴 " : huidigType === "opt" ? "🟡 " : huidigType === "verd" ? "🟢 " : ""}{r}
           </div>
         );
       }
-      i++;
-    }
+    });
+
     return <div>{elements}</div>;
-  };
+  };;
 
   // Parse resultaat in blokken per campagne
   const parseerResultaat = (tekst) => {
