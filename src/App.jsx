@@ -2504,6 +2504,99 @@ function Stap9({ bedrijf, csvData, onBack }) {
     return { bg: "#f0fff0", border: "#80cc80", dot: "#1a6b1a", label: "VERDER" };
   };
 
+  // ── PDF download ──
+  const downloadPdf = () => {
+    const datum = new Date().toLocaleDateString("nl-BE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const tekst = resultaat || "";
+    const sep = String.fromCharCode(10);
+    
+    // Zet de evaluatietekst om naar HTML-blokken
+    const regels = tekst.split(sep);
+    let html = "";
+    let huidigType = null;
+    for (const regel of regels) {
+      const r = regel.trim().replace(/\*\*/g, "").replace(/^[#]+\s*/, "");
+      if (!r) { html += "<br/>"; continue; }
+      const isStop = /^STOP/i.test(r);
+      const isOpt  = /^OPTIMALISEER|^BIJSTUREN/i.test(r);
+      const isVerd = /^BLIJVEN|^VERDER|^GOED/i.test(r);
+      const isActies = /^CONCRETE ACTIES|^AANBEVELINGEN/i.test(r);
+      const isOverall = /^OVERALL|^ALGEMEEN|^CONCLUSIE|^BUDGET/i.test(r);
+      if (isStop) {
+        huidigType = "stop";
+        html += "<div class='sectie-header stop'>🔴 Stop direct</div>";
+      } else if (isOpt) {
+        huidigType = "opt";
+        html += "<div class='sectie-header opt'>🟡 Optimaliseer</div>";
+      } else if (isVerd) {
+        huidigType = "verd";
+        html += "<div class='sectie-header verd'>🟢 Blijven lopen</div>";
+      } else if (isActies) {
+        huidigType = null;
+        html += "<div class='sectie-header acties'>⚡ Concrete acties</div>";
+      } else if (isOverall) {
+        huidigType = null;
+        html += "<div class='sectie-header overall'>📊 Overall advies</div>";
+      } else {
+        const cls = huidigType === "stop" ? "item-stop" : huidigType === "opt" ? "item-opt" : huidigType === "verd" ? "item-verd" : "item-neu";
+        html += "<div class='" + cls + "'>" + r.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</div>";
+      }
+    }
+
+    const printWin = window.open("", "_blank");
+    printWin.document.write(`<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8"/>
+<title>Campagne Evaluatie - ${bedrijf.naam}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1208; background: #fff; padding: 40px; max-width: 800px; margin: 0 auto; }
+  .header { border-bottom: 3px solid #c9a84c; padding-bottom: 20px; margin-bottom: 28px; }
+  .header h1 { font-size: 24px; color: #c9a84c; margin-bottom: 4px; }
+  .header .sub { font-size: 13px; color: #6b6050; }
+  .header .datum { font-size: 11px; color: #aaa; margin-top: 8px; }
+  .meta { background: #fdf5e0; border: 1px solid #c9a84c; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; font-size: 13px; line-height: 1.7; }
+  .meta strong { color: #c9a84c; }
+  .sectie-header { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; padding: 8px 14px; border-radius: 6px; margin: 20px 0 8px; }
+  .sectie-header.stop   { background: #ffeeee; color: #cc2200; border-left: 4px solid #cc2200; }
+  .sectie-header.opt    { background: #fff8e0; color: #e08000; border-left: 4px solid #e08000; }
+  .sectie-header.verd   { background: #eeffee; color: #1a6b1a; border-left: 4px solid #1a6b1a; }
+  .sectie-header.acties { background: #fdf5e0; color: #c9a84c; border-left: 4px solid #c9a84c; }
+  .sectie-header.overall{ background: #f5f0ff; color: #4a2a8a; border-left: 4px solid #4a2a8a; }
+  .item-stop { background: #fff5f5; border: 1px solid #ffcccc; border-radius: 6px; padding: 8px 14px; margin-bottom: 6px; font-size: 13px; line-height: 1.65; color: #5a0000; }
+  .item-opt  { background: #fffbf0; border: 1px solid #f0d880; border-radius: 6px; padding: 8px 14px; margin-bottom: 6px; font-size: 13px; line-height: 1.65; color: #5a3000; }
+  .item-verd { background: #f5fff5; border: 1px solid #aaddaa; border-radius: 6px; padding: 8px 14px; margin-bottom: 6px; font-size: 13px; line-height: 1.65; color: #003300; }
+  .item-neu  { background: #fdfaf5; border: 1px solid #e8dfc8; border-radius: 6px; padding: 8px 14px; margin-bottom: 6px; font-size: 13px; line-height: 1.65; color: #3a2f18; }
+  .footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid #e8dfc8; font-size: 10px; color: #aaa; display: flex; justify-content: space-between; }
+  @media print {
+    body { padding: 20px; }
+    button { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📊 Campagne Evaluatie</h1>
+  <div class="sub">${bedrijf.naam}${bedrijf.aanbod ? " · " + bedrijf.aanbod.substring(0, 60) : ""}</div>
+  <div class="datum">Gegenereerd op ${datum} via Meta Ads Bureau</div>
+</div>
+<div class="meta">
+  <strong>Bedrijf:</strong> ${bedrijf.naam}<br/>
+  ${bedrijf.aanbod ? "<strong>Aanbod:</strong> " + bedrijf.aanbod.substring(0, 150) + "<br/>" : ""}
+  <strong>Analyse:</strong> AI-evaluatie van lopende Meta Ads campagnes
+</div>
+${html}
+<div class="footer">
+  <span>Meta Ads Bureau door Verdify · verdify.eu</span>
+  <span>${datum}</span>
+</div>
+<script>setTimeout(() => window.print(), 400);<\/script>
+</body>
+</html>`);
+    printWin.document.close();
+  };
+
   // Render markdown-achtige evaluatietekst met gekleurde blokken
   const renderMarkdownEval = (tekst) => {
     if (!tekst) return null;
@@ -2691,10 +2784,20 @@ function Stap9({ bedrijf, csvData, onBack }) {
         </div>
       )}
 
-      <div style={{ marginTop: 8 }}>
+      <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
         <button onClick={onBack} style={{ background: C.goudLight, border: `1px solid ${C.borderGold}`, borderRadius: 10, padding: "10px 20px", color: C.goud, fontFamily: font.body, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
           ← Terug naar Meta Setup
         </button>
+        {resultaat && (
+          <button onClick={downloadPdf} style={{
+            background: `linear-gradient(135deg,${C.goud},${C.goudBright})`,
+            border: "none", borderRadius: 10, padding: "10px 22px",
+            color: "#1a1208", fontFamily: font.body, fontWeight: 700, fontSize: 13,
+            cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+          }}>
+            📄 Download evaluatie als PDF
+          </button>
+        )}
       </div>
     </div>
   );
