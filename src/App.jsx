@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-const VERDIFY_LOGO = ""; // Logo via URL
+const VERDIFY_LOGO = "/verdify-logo.png"; // Uit public/ map
 
 // ─── API KEY CONTEXT ─────────────────────────────────────────────────────────
 // Standalone HTML mode: user provides their Anthropic API key once.
@@ -3016,14 +3016,7 @@ export default function App() {
           boxShadow: "0 2px 12px rgba(0,0,0,.4)",
           flexShrink: 0,
         }}>
-          {VERDIFY_LOGO
-            ? <img src={VERDIFY_LOGO} alt="Verdify" style={{ height: 64, width: "auto", objectFit: "contain", display: "block" }} />
-            : <div style={{ height: 64, display: "flex", alignItems: "center", padding: "0 8px" }}>
-                <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 26, color: C.navy, letterSpacing: "-.5px" }}>
-                  <span style={{ color: C.goud }}>V</span>erdify
-                </div>
-              </div>
-          }
+          <img src={VERDIFY_LOGO} alt="Verdify" style={{ height: 64, width: "auto", objectFit: "contain", display: "block" }} />
         </div>
         <div>
           <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 22, color: C.text, letterSpacing: "-.3px", marginBottom: 4, lineHeight: 1 }}>
