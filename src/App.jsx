@@ -1474,7 +1474,7 @@ function Stap2({ bedrijf, onCsvData, onNext, onHelp }) {
     r.readAsText(f);
   };
 
-  const [analyseStappen, setAnalyseStappen] = React.useState([]);
+  const [analyseStappen, setAnalyseStappen] = useState([]);
   const analyseer = async () => {
     setLoading(true);
     setAnalyseStappen([]);
@@ -1707,7 +1707,7 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
   };
 
   // ── Pijnpunten analyseren ──
-  const [pijnStappen, setPijnStappen] = React.useState([]);
+  const [pijnStappen, setPijnStappen] = useState([]);
   const analyseer = async () => {
     setLoading(true);
     setPijnStappen([{ tekst: "Reviews en concurrentiedata combineren…", klaar: false }]);
