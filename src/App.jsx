@@ -897,11 +897,29 @@ function SectionHeader({ title, children }) {
   );
 }
 
-function Loader({ text = "Genereren…" }) {
+function Loader({ text = "Genereren…", stappen = null }) {
+  const [dotCount, setDotCount] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setDotCount(d => (d + 1) % 4), 500);
+    return () => clearInterval(t);
+  }, []);
+  const dots = ".".repeat(dotCount);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, color: C.groen, fontFamily: font.body, fontSize: 13, fontWeight: 600 }}>
-      <span style={{ display: "inline-block", width: 16, height: 16, border: `2px solid ${C.borderGold}`, borderTop: `2px solid ${C.goud}`, borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-      {text}
+    <div style={{ background: C.groenLight, border: `1px solid ${C.borderGreen}`, borderRadius: 12, padding: "14px 18px", marginBottom: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: stappen && stappen.length > 0 ? 12 : 0 }}>
+        <span style={{ display: "inline-block", width: 18, height: 18, border: `2.5px solid ${C.borderGreen}`, borderTop: `2.5px solid ${C.groen}`, borderRadius: "50%", animation: "spin 1s linear infinite", flexShrink: 0 }} />
+        <span style={{ color: C.groen, fontFamily: font.body, fontSize: 13, fontWeight: 600 }}>{text}{dots}</span>
+      </div>
+      {stappen && stappen.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, paddingLeft: 28 }}>
+          {stappen.map((s, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, fontFamily: font.body }}>
+              <span style={{ flexShrink: 0, color: s.klaar ? C.groen : C.muted, fontWeight: 700 }}>{s.klaar ? "✓" : "·"}</span>
+              <span style={{ color: s.klaar ? C.groen : C.muted, fontStyle: s.klaar ? "normal" : "italic", lineHeight: 1.5 }}>{s.tekst}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -2931,10 +2949,12 @@ function Stap9({ bedrijf, csvData, onBack }) {
 
         <div style={{ marginTop:14 }}>
           {loading
-            ? <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0" }}>
-                <span style={{ width:18, height:18, border:`3px solid ${C.border}`, borderTop:`3px solid ${C.goud}`, borderRadius:"50%", animation:"spin 1s linear infinite", display:"inline-block" }} />
-                <span style={{ fontFamily:font.body, fontSize:14, color:C.muted }}>AI analyseert je campagnes…</span>
-              </div>
+            ? <Loader text="Campagnes analyseren" stappen={[
+                { tekst: "Campagnedata inlezen en analyseren…", klaar: false },
+                { tekst: "Vergelijken met sector-benchmarks…", klaar: false },
+                { tekst: "Beslissingen formuleren per campagne…", klaar: false },
+                { tekst: "Budget Guardian en Fatigue controleren…", klaar: false },
+              ]} />
             : <button onClick={evalueer} style={{ background:C.groen, border:"none", borderRadius:11, padding:"11px 26px", color:"#FFFFFF", fontFamily:font.body, fontWeight:700, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
                 📊 Evalueer campagnes
               </button>
