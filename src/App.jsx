@@ -350,33 +350,53 @@ const HELP_STATISCH = {
 // ─── DESIGN TOKENS ───────────────────────────────────────────────────────────
 
 const C = {
-  // Navy & Gold theme
-  goud:        "#D4A847",
-  goudLight:   "#FDF5DC",
-  goudBright:  "#E8C060",
-  goudDim:     "#9A7820",
-  bg:          "#F0EFE9",
-  bgMid:       "#E6E3D8",
+  // Ecofinity brand design system
+  // Primair: diep bosgroen (eco, duurzaam, vertrouwen)
+  groen:       "#2C6E49",       // primaire merkkleur
+  groenLight:  "#EBF5EF",       // achtergrond highlights
+  groenBright: "#3A8A5C",       // hover state
+  groenDim:    "#1D4D33",       // tekst op groen
+  groenSoft:   "#4CAF7D",       // iconen, badges
+  // Achtergrond & structuur
+  bg:          "#F8F7F4",       // warme lichte achtergrond
+  bgMid:       "#F0EDE7",       // kaartachtergrond / mid
+  bgWarm:      "#EDE8E1",       // sectiescheiders
   card:        "#FFFFFF",
-  border:      "#D4D0C4",
-  borderGold:  "#C4922A",
-  text:        "#1C2333",
-  textSoft:    "#2E3D58",
-  muted:       "#8A95A8",
-  success:     "#4ade80",
-  error:       "#f87171",
-  info:        "#60a5fa",
-  shadow:      "0 4px 28px rgba(28,35,51,.10)",
-  shadowGold:  "0 4px 20px rgba(212,168,71,.25)",
-  drawerBg:    "#F5F2EA",
-  navy:        "#1C2333",
-  navyMid:     "#2E3D58",
-  navyLight:   "#3D5278",
+  border:      "#DDD8CF",       // subtiele border
+  borderGreen: "#A8D4B8",       // groene border
+  // Tekst
+  text:        "#1E2A23",       // diep antraciet (warm)
+  textSoft:    "#3D4E44",       // secundaire tekst
+  muted:       "#7A8A7E",       // placeholder, hints
+  // Status — subtiel
+  success:     "#2C6E49",
+  successBg:   "#EBF5EF",
+  error:       "#B03A2E",
+  errorBg:     "#FDECEA",
+  warning:     "#8A6200",
+  warningBg:   "#FEF9EC",
+  info:        "#1A5276",
+  infoBg:      "#EAF2F8",
+  // Schaduw & effect
+  shadow:      "0 2px 16px rgba(30,42,35,.08)",
+  shadowMd:    "0 4px 28px rgba(30,42,35,.12)",
+  shadowGreen: "0 4px 20px rgba(44,110,73,.18)",
+  drawerBg:    "#F4F2EE",
+  // Aliassen voor backward compat met bestaande code
+  goud:        "#2C6E49",
+  goudLight:   "#EBF5EF",
+  goudBright:  "#3A8A5C",
+  goudDim:     "#1D4D33",
+  borderGold:  "#A8D4B8",
+  shadowGold:  "0 4px 20px rgba(44,110,73,.18)",
+  navy:        "#1E2A23",
+  navyMid:     "#3D4E44",
+  navyLight:   "#5A6E5E",
 };
 
 const font = {
-  display: "'Cormorant Garamond', 'Georgia', serif",
-  body:    "'DM Sans', 'Segoe UI', sans-serif",
+  display: "'Raleway', 'Lato', 'Helvetica Neue', sans-serif",
+  body:    "'Open Sans', 'Inter', 'Segoe UI', sans-serif",
 };
 
 // ─── HELP DRAWER ─────────────────────────────────────────────────────────────
@@ -462,7 +482,7 @@ Geef 3 tips en 3 sector-specifieke zoektermen. Wees concreet en gebruik de bedri
         position: "fixed", top: 0, right: 0, bottom: 0,
         width: 440, maxWidth: "92vw",
         background: C.drawerBg,
-        borderLeft: `1px solid ${C.borderGold}`,
+        borderLeft: `1px solid ${C.borderGreen}`,
         zIndex: 201, overflowY: "auto",
         boxShadow: "-8px 0 40px rgba(0,0,0,.7)",
         animation: "slideIn .25s cubic-bezier(.4,0,.2,1)",
@@ -535,7 +555,7 @@ Geef 3 tips en 3 sector-specifieke zoektermen. Wees concreet en gebruik de bedri
                 <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   {s.links.map((lnk, li) => (
                     <a key={li} href={lnk.url} target="_blank" rel="noopener"
-                      style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 7, background: C.goudLight, border: `1px solid ${C.borderGold}`, color: C.goud, fontFamily: font.body, fontSize: 12, fontWeight: 600, textDecoration: "none" }}
+                      style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 7, background: C.groenLight, border: `1px solid ${C.borderGreen}`, color: C.groen, fontFamily: font.body, fontSize: 12, fontWeight: 600, textDecoration: "none" }}
                       onMouseEnter={e => e.currentTarget.style.background = "#e8d88a22"}
                       onMouseLeave={e => e.currentTarget.style.background = C.goudLight}
                     >
@@ -594,7 +614,7 @@ Geef 3 tips en 3 sector-specifieke zoektermen. Wees concreet en gebruik de bedri
                   border: `1px solid ${loadingAi ? C.borderGold : "transparent"}`,
                   borderRadius: 10, cursor: loadingAi ? "default" : "pointer",
                   fontFamily: font.body, fontWeight: 700, fontSize: 13,
-                  color: loadingAi ? C.goud : "#1a1614",
+                  color: loadingAi ? C.groen : "#FFFFFF",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   transition: "all .2s",
                 }}
@@ -603,7 +623,7 @@ Geef 3 tips en 3 sector-specifieke zoektermen. Wees concreet en gebruik de bedri
                   <>
                     <span style={{
                       width: 14, height: 14,
-                      border: `2px solid ${C.borderGold}`, borderTop: `2px solid ${C.goud}`,
+                      border: `2px solid ${C.border}`, borderTop: `2px solid ${C.groen}`,
                       borderRadius: "50%", animation: "spin 1s linear infinite", display: "inline-block",
                     }} />
                     Persoonlijke tips genereren…
@@ -739,20 +759,20 @@ function HelpBtn({ onClick, heeftNaam }) {
       title="Hulp bij deze stap"
       style={{
         display: "inline-flex", alignItems: "center", gap: 6,
-        background: hover ? C.goudLight : "transparent",
-        border: `1.5px solid ${hover ? C.goud : C.borderGold}`,
+        background: hover ? C.groenLight : "transparent",
+        border: `1.5px solid ${hover ? C.groen : C.borderGreen}`,
         borderRadius: 20, padding: "6px 14px",
         cursor: "pointer", transition: "all .18s",
         fontFamily: font.body, fontWeight: 600, fontSize: 12,
-        color: hover ? C.navyMid : C.goudDim,
+        color: hover ? C.groen : C.muted,
         letterSpacing: ".3px",
       }}
     >
       <span style={{
         width: 18, height: 18, borderRadius: "50%",
-        background: `linear-gradient(135deg, ${C.goud}, ${C.goudBright})`,
+        background: C.groen,
         display: "inline-flex", alignItems: "center", justifyContent: "center",
-        fontSize: 11, color: "#1a1614", fontWeight: 800, flexShrink: 0,
+        fontSize: 11, color: "#FFFFFF", fontWeight: 700, flexShrink: 0,
       }}>?</span>
       Hulp
       {heeftNaam && (
@@ -780,20 +800,20 @@ function ProgressBar({ stap }) {
             <div key={n} style={{ display: "flex", alignItems: "center" }}>
               <div title={naam} style={{
                 width: 40, height: 40, borderRadius: "50%",
-                background: done ? `linear-gradient(135deg, ${C.goud}, ${C.goudBright})` : active ? C.goudLight : "transparent",
-                border: `2px solid ${done || active ? C.goud : "#D4D0C4"}`,
+                background: done ? C.groen : active ? C.groenLight : "transparent",
+                border: `2px solid ${done ? C.groen : active ? C.groen : C.border}`,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontFamily: font.display, fontWeight: 700, fontSize: 15,
-                color: done ? C.navy : active ? C.goud : C.muted,
+                color: done ? "#FFFFFF" : active ? C.groen : C.muted,
                 transition: "all .35s",
-                boxShadow: active ? C.shadowGold : done ? "0 0 16px rgba(201,168,76,.3)" : "none",
+                boxShadow: active ? C.shadowGreen : done ? "0 0 12px rgba(44,110,73,.25)" : "none",
               }}>
                 {done ? "✓" : n}
               </div>
               {i < 8 && (
                 <div style={{
                   width: 28, height: 2,
-                  background: done ? `linear-gradient(90deg, ${C.goud}, ${C.goudBright})` : C.border,
+                  background: done ? C.groen : C.border,
                   transition: "background .35s",
                 }} />
               )}
@@ -801,7 +821,7 @@ function ProgressBar({ stap }) {
           );
         })}
       </div>
-      <div style={{ textAlign: "center", marginTop: 14, fontFamily: font.body, fontSize: 11, fontWeight: 600, color: C.goudDim, letterSpacing: "2px", textTransform: "uppercase" }}>
+      <div style={{ textAlign: "center", marginTop: 14, fontFamily: font.body, fontSize: 11, fontWeight: 600, color: C.groen, letterSpacing: "2px", textTransform: "uppercase" }}>
         Stap {stap} van {STAP_NAMEN.length} &nbsp;·&nbsp; {STAP_NAMEN[stap - 1]}
       </div>
     </div>
@@ -825,10 +845,10 @@ function Btn({ children, onClick, disabled, variant = "primary", style = {}, sma
     display: "inline-flex", alignItems: "center", gap: 7, letterSpacing: ".2px", ...style,
   };
   const variants = {
-    primary: { background: disabled ? C.border : `linear-gradient(135deg, ${C.goud} 0%, ${C.goudBright} 100%)`, color: disabled ? C.muted : "#1C2333", fontWeight: 700, boxShadow: disabled ? "none" : C.shadowGold },
-    outline: { background: "transparent", color: C.goud, border: `1.5px solid ${C.goud}` },
-    ghost: { background: C.goudLight, color: C.goudDim, border: `1px solid ${C.borderGold}` },
-    navy: { background: "#1C2333", color: "#F0EFE9", fontWeight: 700, border: "none" },
+    primary: { background: disabled ? C.border : C.groen, color: disabled ? C.muted : "#FFFFFF", fontWeight: 600, boxShadow: disabled ? "none" : C.shadowGreen, letterSpacing: ".3px" },
+    outline: { background: "transparent", color: C.groen, border: `1.5px solid ${C.groen}` },
+    ghost: { background: C.groenLight, color: C.groenDim, border: `1px solid ${C.borderGreen}` },
+    dark: { background: C.text, color: "#FFFFFF", fontWeight: 600, border: "none" },
     danger: { background: "rgba(248,113,113,.1)", color: C.error, border: `1px solid rgba(248,113,113,.3)` },
   };
   return <button onClick={disabled ? undefined : onClick} disabled={disabled} style={{ ...base, ...variants[variant] }}>{children}</button>;
@@ -837,10 +857,10 @@ function Btn({ children, onClick, disabled, variant = "primary", style = {}, sma
 function Input({ label, value, onChange, placeholder, type = "text", style = {} }) {
   return (
     <div style={{ marginBottom: 20 }}>
-      {label && <label style={{ display: "block", fontFamily: font.body, fontWeight: 600, fontSize: 11, color: C.goudDim, marginBottom: 8, letterSpacing: "1.5px", textTransform: "uppercase" }}>{label}</label>}
+      {label && <label style={{ display: "block", fontFamily: font.body, fontWeight: 600, fontSize: 11, color: C.groen, marginBottom: 8, letterSpacing: "1.5px", textTransform: "uppercase" }}>{label}</label>}
       <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
         style={{ width: "100%", boxSizing: "border-box", padding: "13px 18px", borderRadius: 10, border: `1px solid ${C.border}`, fontFamily: font.body, fontSize: 14, background: C.bgMid, color: C.text, outline: "none", transition: "border .2s, box-shadow .2s", ...style }}
-        onFocus={e => { e.target.style.borderColor = C.goud; e.target.style.boxShadow = C.shadowGold; }}
+        onFocus={e => { e.target.style.borderColor = C.groen; e.target.style.boxShadow = C.shadowGreen; }}
         onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }}
       />
     </div>
@@ -853,7 +873,7 @@ function Textarea({ label, value, onChange, placeholder, rows = 5, style = {} })
       {label && <label style={{ display: "block", fontFamily: font.body, fontWeight: 600, fontSize: 11, color: C.goudDim, marginBottom: 8, letterSpacing: "1.5px", textTransform: "uppercase" }}>{label}</label>}
       <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows}
         style={{ width: "100%", boxSizing: "border-box", padding: "13px 18px", borderRadius: 10, border: `1px solid ${C.border}`, fontFamily: font.body, fontSize: 14, background: C.bgMid, color: C.text, outline: "none", resize: "vertical", lineHeight: 1.65, ...style }}
-        onFocus={e => { e.target.style.borderColor = C.goud; e.target.style.boxShadow = C.shadowGold; }}
+        onFocus={e => { e.target.style.borderColor = C.groen; e.target.style.boxShadow = C.shadowGreen; }}
         onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }}
       />
     </div>
@@ -862,7 +882,7 @@ function Textarea({ label, value, onChange, placeholder, rows = 5, style = {} })
 
 function Badge({ children, style = {} }) {
   return (
-    <span style={{ display: "inline-block", background: C.goudLight, border: `1px solid ${C.borderGold}`, color: C.goud, padding: "4px 13px", borderRadius: 20, fontSize: 12, fontWeight: 600, fontFamily: font.body, margin: "3px 4px 3px 0", letterSpacing: ".3px", ...style }}>
+    <span style={{ display: "inline-block", background: C.goudLight, border: `1px solid ${C.borderGreen}`, color: C.groen, padding: "4px 13px", borderRadius: 20, fontSize: 12, fontWeight: 600, fontFamily: font.body, margin: "3px 4px 3px 0", letterSpacing: ".3px", ...style }}>
       {children}
     </span>
   );
@@ -871,7 +891,7 @@ function Badge({ children, style = {} }) {
 function SectionHeader({ title, children }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22, flexWrap: "wrap", gap: 10, paddingBottom: 16, borderBottom: `1px solid ${C.border}` }}>
-      <h3 style={{ fontFamily: font.display, fontWeight: 600, fontSize: 20, color: C.navy, margin: 0, letterSpacing: "-.3px" }}>{title}</h3>
+      <h3 style={{ fontFamily: font.display, fontWeight: 600, fontSize: 18, color: C.text, margin: 0, letterSpacing: ".2px" }}>{title}</h3>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{children}</div>
     </div>
   );
@@ -879,7 +899,7 @@ function SectionHeader({ title, children }) {
 
 function Loader({ text = "Genereren…" }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, color: C.goud, fontFamily: font.body, fontSize: 13, fontWeight: 600 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, color: C.groen, fontFamily: font.body, fontSize: 13, fontWeight: 600 }}>
       <span style={{ display: "inline-block", width: 16, height: 16, border: `2px solid ${C.borderGold}`, borderTop: `2px solid ${C.goud}`, borderRadius: "50%", animation: "spin 1s linear infinite" }} />
       {text}
     </div>
@@ -892,7 +912,7 @@ function StepTitle({ emoji, title, sub, onHelp, heeftNaam }) {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 26 }}>{emoji}</span>
-          <h2 style={{ fontFamily: font.display, fontWeight: 700, fontSize: 26, margin: 0, color: C.navy, letterSpacing: "-.5px", lineHeight: 1.1 }}>{title}</h2>
+          <h2 style={{ fontFamily: font.display, fontWeight: 700, fontSize: 24, margin: 0, color: C.text, letterSpacing: ".2px", lineHeight: 1.2 }}>{title}</h2>
         </div>
         {onHelp && <HelpBtn onClick={onHelp} heeftNaam={heeftNaam} />}
       </div>
@@ -1490,7 +1510,7 @@ function Stap2({ bedrijf, onCsvData, onNext, onHelp }) {
 function SegmentKaart({ seg }) {
   return (
     <div style={{ background: C.bgMid, borderRadius: 14, padding: 22, border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 10 }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = "#D4A847"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(212,168,71,.15)"; }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = C.groen; e.currentTarget.style.boxShadow = C.shadowGreen; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = "none"; }}
     >
       <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 18, color: C.text }}>{seg.naam}</div>
@@ -1848,11 +1868,11 @@ function Stap4({ pijnpunten, gekozen, setGekozen, onNext, bedrijf, onHelp }) {
         {pijnpunten.map((p, i) => {
           const sel = gekozen.includes(i);
           return (
-            <div key={i} onClick={() => toggle(i)} style={{ padding: "14px 20px", borderRadius: 12, cursor: "pointer", border: `1.5px solid ${sel ? C.goud : C.border}`, background: sel ? C.goudLight : C.bgMid, display: "flex", alignItems: "center", gap: 14, transition: "all .18s", boxShadow: sel ? C.shadowGold : "none" }}>
-              <div style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, border: `1.5px solid ${sel ? C.goud : C.border}`, background: sel ? `linear-gradient(135deg, ${C.goud}, ${C.goudBright})` : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: "#1a1614", fontWeight: 800, fontSize: 13 }}>
+            <div key={i} onClick={() => toggle(i)} style={{ padding: "14px 20px", borderRadius: 12, cursor: "pointer", border: `1.5px solid ${sel ? C.groen : C.border}`, background: sel ? C.groenLight : C.bgMid, display: "flex", alignItems: "center", gap: 14, transition: "all .18s", boxShadow: sel ? C.shadowGreen : "none" }}>
+              <div style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, border: `1.5px solid ${sel ? C.groen : C.border}`, background: sel ? C.groen : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: "#1a1614", fontWeight: 800, fontSize: 13 }}>
                 {sel ? "✓" : ""}
               </div>
-              <span style={{ fontFamily: font.body, fontSize: 14, color: sel ? C.goudBright : C.textSoft, fontStyle: "italic" }}>"{p}"</span>
+              <span style={{ fontFamily: font.body, fontSize: 14, color: sel ? C.groen : C.textSoft, fontStyle: "italic" }}>"{p}"</span>
             </div>
           );
         })}
@@ -1913,7 +1933,7 @@ function Stap5({ segmenten, pijnpunten, gekozenPijnpunten, combinaties, setCombi
                   const sel = combinaties.includes(key);
                   return (
                     <td key={pi} style={{ padding: "10px", textAlign: "center", borderBottom: `1px solid ${C.border}` }}>
-                      <button onClick={() => toggle(key)} style={{ width: 36, height: 36, borderRadius: 8, border: `1.5px solid ${sel ? C.goud : C.border}`, background: sel ? `linear-gradient(135deg, ${C.goud}, ${C.goudBright})` : "transparent", cursor: "pointer", color: sel ? "#1a1614" : C.muted, fontWeight: 800, fontSize: 16, transition: "all .15s", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
+                      <button onClick={() => toggle(key)} style={{ width: 36, height: 36, borderRadius: 8, border: `1.5px solid ${sel ? C.groen : C.border}`, background: sel ? C.groen : "transparent", cursor: "pointer", color: sel ? "#1a1614" : C.muted, fontWeight: 800, fontSize: 16, transition: "all .15s", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
                         {sel ? "✓" : "+"}
                       </button>
                     </td>
@@ -1929,7 +1949,7 @@ function Stap5({ segmenten, pijnpunten, gekozenPijnpunten, combinaties, setCombi
           <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 11, color: C.goud, marginBottom: 10, letterSpacing: "1px", textTransform: "uppercase" }}>✓ Gekozen combinaties</div>
           {gekozenLabels.map((l, i) => (
             <div key={i} style={{ fontSize: 13, fontFamily: font.body, color: C.textSoft, padding: "4px 0" }}>
-              <span style={{ fontWeight: 700, color: C.goud }}>#{i + 1}</span> {l}
+              <span style={{ fontWeight: 700, color: C.groen }}>#{i + 1}</span> {l}
             </div>
           ))}
         </div>
@@ -2031,11 +2051,11 @@ function Stap6({ bedrijf, combinaties, segmenten, pijnpunten, onNext, onBack, on
           {suggesties.map((s, i) => {
             const sel = gekozenSuggestie?.type === s.type && !eigenIdee;
             return (
-              <div key={i} onClick={() => { setGekozenSuggestie(s); setEigenIdee(""); }} style={{ padding: 22, borderRadius: 14, cursor: "pointer", border: `1.5px solid ${sel ? C.goud : C.border}`, background: sel ? C.goudLight : C.bgMid, transition: "all .2s", boxShadow: sel ? C.shadowGold : "none" }}
+              <div key={i} onClick={() => { setGekozenSuggestie(s); setEigenIdee(""); }} style={{ padding: 22, borderRadius: 14, cursor: "pointer", border: `1.5px solid ${sel ? C.groen : C.border}`, background: sel ? C.groenLight : C.bgMid, transition: "all .2s", boxShadow: sel ? C.shadowGold : "none" }}
                 onMouseEnter={e => { if (!sel) e.currentTarget.style.borderColor = C.borderGold; }}
                 onMouseLeave={e => { if (!sel) e.currentTarget.style.borderColor = C.border; }}
               >
-                <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 18, marginBottom: 8, color: sel ? C.goudBright : C.text }}>{sel ? "✓ " : ""}{s.type ?? ""}</div>
+                <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 18, marginBottom: 8, color: sel ? C.groen : C.text }}>{sel ? "✓ " : ""}{s.type ?? ""}</div>
                 <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, marginBottom: 14 }}>{s.omschrijving ?? ""}</div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Badge>{s.doel ?? ""}</Badge>
@@ -2052,8 +2072,8 @@ function Stap6({ bedrijf, combinaties, segmenten, pijnpunten, onNext, onBack, on
           placeholder="bv. Gratis strategiegesprek van 30 minuten" />
       </div>
       {actiefCampagne && (
-        <div style={{ background: C.goudLight, border: `1px solid ${C.borderGold}`, borderRadius: 12, padding: "14px 18px", marginBottom: 24, display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ color: C.goud, fontWeight: 700, fontSize: 11, fontFamily: font.body, letterSpacing: "1px", textTransform: "uppercase" }}>Actieve keuze</span>
+        <div style={{ background: C.groenLight, border: `1px solid ${C.borderGreen}`, borderRadius: 12, padding: "14px 18px", marginBottom: 24, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ color: C.groen, fontWeight: 700, fontSize: 11, fontFamily: font.body, letterSpacing: "1px", textTransform: "uppercase" }}>Actieve keuze</span>
           <span style={{ color: C.text, fontSize: 14 }}>→ {actiefCampagne}</span>
         </div>
       )}
@@ -2223,7 +2243,7 @@ function Stap7({ bedrijf, segmenten, pijnpunten, combinaties, campagne, onBack, 
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {combs.map((c, i) => (
-            <button key={c.key} onClick={() => setActieve(i)} style={{ padding: "9px 18px", borderRadius: 30, border: `1.5px solid ${actieve === i ? C.goud : C.border}`, background: actieve === i ? `linear-gradient(135deg, ${C.goud}, ${C.goudBright})` : "transparent", color: actieve === i ? "#1a1614" : C.muted, fontFamily: font.body, fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all .18s" }}>
+            <button key={c.key} onClick={() => setActieve(i)} style={{ padding: "9px 18px", borderRadius: 30, border: `1.5px solid ${actieve === i ? C.groen : C.border}`, background: actieve === i ? C.groen : "transparent", color: actieve === i ? "#FFFFFF" : C.muted, fontFamily: font.body, fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all .18s" }}>
               {c.seg.naam} #{i + 1}
             </button>
           ))}
@@ -2309,7 +2329,7 @@ function ApiKeyBanner() {
             placeholder="sk-ant-api03-..."
             style={{ flex: 1, minWidth: 260, padding: "10px 14px", borderRadius: 9, border: "1.5px solid #1e3a20", background: "#0d1a10", color: C.text, fontFamily: "monospace", fontSize: 13, outline: "none" }} />
           <button onClick={opslaan} disabled={!key.trim() || saving}
-            style={{ background: key.trim() && !saving ? "linear-gradient(135deg,#2d7a3a,#4ade80)" : "#1a2a1a", border: "none", borderRadius: 9, padding: "10px 20px", color: key.trim() && !saving ? "#111a12" : C.muted, fontFamily: font.body, fontWeight: 700, fontSize: 13, cursor: key.trim() && !saving ? "pointer" : "not-allowed" }}>
+            style={{ background: key.trim() && !saving ? C.groen : C.bgMid, border: "none", borderRadius: 9, padding: "10px 20px", color: key.trim() && !saving ? "#FFFFFF" : C.muted, fontFamily: font.body, fontWeight: 700, fontSize: 13, cursor: key.trim() && !saving ? "pointer" : "not-allowed" }}>
             {saving ? "Testen..." : "Opslaan & testen"}
           </button>
           {saveResult && <span style={{ fontSize: 13, fontWeight: 600, color: saveResult === "ok" ? "#4ade80" : "#f87171" }}>{saveResult === "ok" ? "✓ Verbonden!" : "✗ Ongeldige sleutel"}</span>}
@@ -2425,7 +2445,7 @@ function Stap8({ onBack, onNaarEvaluatie }) {
           <div key={i} style={{ background: C.card, borderRadius: 14, border: `1px solid ${open === i ? C.goud : C.border}`, boxShadow: C.shadow, overflow: "hidden", transition: "border .2s" }}>
             {/* Header */}
             <div onClick={() => setOpen(open === i ? null : i)} style={{ padding: "18px 24px", cursor: "pointer", display: "flex", alignItems: "center", gap: 16, userSelect: "none" }}>
-              <div style={{ width: 36, height: 36, borderRadius: "50%", background: `linear-gradient(135deg,${C.goud},${C.goudBright})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: font.display, fontWeight: 800, fontSize: 13, color: "#1a1208", flexShrink: 0 }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: C.groen, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: font.display, fontWeight: 700, fontSize: 13, color: "#FFFFFF", flexShrink: 0 }}>
                 {ms.nr}
               </div>
               <div style={{ flex: 1 }}>
@@ -2435,7 +2455,7 @@ function Stap8({ onBack, onNaarEvaluatie }) {
                 </div>
                 <div style={{ fontSize: 12, color: C.muted, fontFamily: font.body, marginTop: 2 }}>{ms.sub}</div>
               </div>
-              <span style={{ color: C.goud, fontSize: 20, fontWeight: 700, transition: "transform .2s", transform: open === i ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+              <span style={{ color: C.groen, fontSize: 20, fontWeight: 700, transition: "transform .2s", transform: open === i ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
             </div>
 
             {/* Content */}
@@ -2455,7 +2475,7 @@ function Stap8({ onBack, onNaarEvaluatie }) {
                   <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 7 }}>
                     {ms.links.map((lnk, li) => (
                       <a key={li} href={lnk.url} target="_blank" rel="noopener"
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", borderRadius: 9, background: C.goudLight, border: `1px solid ${C.borderGold}`, color: C.goud, fontFamily: font.body, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", borderRadius: 9, background: C.groenLight, border: `1px solid ${C.borderGreen}`, color: C.groen, fontFamily: font.body, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
                         <span style={{ fontSize: 16 }}>↗</span> {lnk.label}
                       </a>
                     ))}
@@ -2744,7 +2764,7 @@ function Stap9({ bedrijf, csvData, onBack }) {
           </div>
           <div style={{ padding:"14px 18px", background:"white" }}>
             {blok.reden && <div style={{ marginBottom:10 }}><span style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.muted, textTransform:"uppercase", letterSpacing:"1px" }}>Reden &nbsp;</span><span style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.6 }}>{blok.reden}</span></div>}
-            {blok.actie && <div style={{ background:C.goudLight, border:`1px solid ${C.borderGold}`, borderRadius:8, padding:"8px 14px", display:"flex", gap:8 }}><span style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.goudDim, textTransform:"uppercase", letterSpacing:"1px", flexShrink:0, paddingTop:2 }}>Actie</span><span style={{ fontFamily:font.body, fontSize:13, color:C.navy, lineHeight:1.6 }}>{blok.actie}</span></div>}
+            {blok.actie && <div style={{ background:C.groenLight, border:`1px solid ${C.borderGreen}`, borderRadius:8, padding:"8px 14px", display:"flex", gap:8 }}><span style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.groen, textTransform:"uppercase", letterSpacing:"1px", flexShrink:0, paddingTop:2 }}>Actie</span><span style={{ fontFamily:font.body, fontSize:13, color:C.navy, lineHeight:1.6 }}>{blok.actie}</span></div>}
             {!blok.reden && !blok.actie && <div style={{ fontFamily:font.body, fontSize:13, color:C.muted, fontStyle:"italic" }}>Geen details beschikbaar.</div>}
           </div>
         </div>
@@ -2865,7 +2885,7 @@ function Stap9({ bedrijf, csvData, onBack }) {
                 <span style={{ width:18, height:18, border:`3px solid ${C.border}`, borderTop:`3px solid ${C.goud}`, borderRadius:"50%", animation:"spin 1s linear infinite", display:"inline-block" }} />
                 <span style={{ fontFamily:font.body, fontSize:14, color:C.muted }}>AI analyseert je campagnes…</span>
               </div>
-            : <button onClick={evalueer} style={{ background:`linear-gradient(135deg,${C.goud},${C.goudBright})`, border:"none", borderRadius:11, padding:"11px 26px", color:"#1a1208", fontFamily:font.body, fontWeight:700, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
+            : <button onClick={evalueer} style={{ background:C.groen, border:"none", borderRadius:11, padding:"11px 26px", color:"#FFFFFF", fontFamily:font.body, fontWeight:700, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
                 📊 Evalueer campagnes
               </button>
           }
@@ -2884,8 +2904,8 @@ function Stap9({ bedrijf, csvData, onBack }) {
                 flex:1, padding:"9px 14px", borderRadius:9, border:"none", cursor:"pointer",
                 background: actieTab === tab.id ? C.card : "transparent",
                 boxShadow: actieTab === tab.id ? C.shadow : "none",
-                fontFamily:font.body, fontWeight:700, fontSize:13,
-                color: actieTab === tab.id ? C.text : C.muted,
+                fontFamily:font.body, fontWeight:600, fontSize:13,
+                color: actieTab === tab.id ? C.groen : C.muted,
                 transition:"all .15s",
               }}>{tab.label}</button>
             ))}
@@ -2905,7 +2925,7 @@ function Stap9({ bedrijf, csvData, onBack }) {
                   <p style={{ fontFamily:font.body, fontSize:13, color:C.muted, marginBottom:14, lineHeight:1.7 }}>
                     Genereer concrete A/B-testvoorstellen op basis van je campagnedata: welke headlines, hooks, visuals of doelgroepen testen?
                   </p>
-                  <button onClick={genereerTests} style={{ background:`linear-gradient(135deg,${C.goud},${C.goudBright})`, border:"none", borderRadius:10, padding:"10px 22px", color:"#1a1208", fontFamily:font.body, fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                  <button onClick={genereerTests} style={{ background:C.groen, border:"none", borderRadius:10, padding:"10px 22px", color:"#FFFFFF", fontFamily:font.body, fontWeight:700, fontSize:13, cursor:"pointer" }}>
                     Genereer testvoorstellen →
                   </button>
                 </div>
@@ -2928,7 +2948,7 @@ function Stap9({ bedrijf, csvData, onBack }) {
           ← Terug naar Meta Setup
         </button>
         {resultaat && (
-          <button onClick={downloadPdf} style={{ background:`linear-gradient(135deg,${C.goud},${C.goudBright})`, border:"none", borderRadius:10, padding:"10px 22px", color:"#1a1208", fontFamily:font.body, fontWeight:700, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
+          <button onClick={downloadPdf} style={{ background:C.groen, border:"none", borderRadius:10, padding:"10px 22px", color:"#FFFFFF", fontFamily:font.body, fontWeight:600, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
             📄 Download evaluatie als PDF
           </button>
         )}
@@ -2955,7 +2975,7 @@ export default function App() {
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: font.body }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap');
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
@@ -2963,8 +2983,8 @@ export default function App() {
         ::placeholder { color: ${C.muted}; opacity: 1; }
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: ${C.bgMid}; }
-        ::-webkit-scrollbar-thumb { background: ${C.borderGold}; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: ${C.goudDim}; }
+        ::-webkit-scrollbar-thumb { background: ${C.borderGreen}; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: ${C.groen}; }
       `}</style>
 
       {/* Help Drawer */}
@@ -2975,23 +2995,23 @@ export default function App() {
 
 
       {/* Header */}
-      <div style={{ background: C.navy, borderBottom: "1px solid #2E3D58", padding: "0 28px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 8px 40px rgba(28,35,51,.6)" }}>
+      <div style={{ background: "#2C6E49", borderBottom: "1px solid #1D4D33", padding: "0 28px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 4px 24px rgba(30,42,35,.3)" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{
               width: 36, height: 36, borderRadius: 9,
-              background: `linear-gradient(135deg, ${C.goud}, ${C.goudBright})`,
+              background: "rgba(255,255,255,.2)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18, boxShadow: C.shadowGold, color: "#1a1614", fontWeight: 800,
+              fontSize: 18, boxShadow: "none", color: "#FFFFFF", fontWeight: 800, border: "1.5px solid rgba(255,255,255,.3)",
             }}>◆</div>
             <div>
-              <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 19, color: "#F0EFE9", lineHeight: 1, letterSpacing: "-.3px" }}>Meta Ads Bureau</div>
-              <div style={{ fontSize: 10, color: "#D4A847", fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" }}>AI Campagne Builder</div>
+              <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 19, color: "#FFFFFF", lineHeight: 1, letterSpacing: ".5px", fontWeight: 700 }}>Meta Ads Bureau</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,.75)", fontWeight: 600, letterSpacing: "2.5px", textTransform: "uppercase" }}>AI Campagne Builder</div>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {bedrijf.naam && (
-              <div style={{ background: "rgba(212,168,71,.15)", border: "1px solid rgba(212,168,71,.4)", borderRadius: 8, padding: "7px 16px", fontSize: 13, fontWeight: 600, color: "#D4A847", fontFamily: font.body }}>
+              <div style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.3)", borderRadius: 8, padding: "7px 16px", fontSize: 13, fontWeight: 600, color: "#FFFFFF", fontFamily: font.body }}>
                 {bedrijf.naam}
               </div>
             )}
@@ -3036,13 +3056,13 @@ export default function App() {
           />
         </div>
         <div>
-          <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 22, color: C.text, letterSpacing: "-.3px", marginBottom: 4, lineHeight: 1 }}>
+          <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 20, color: C.groen, letterSpacing: ".3px", marginBottom: 4, lineHeight: 1 }}>
             Meta Ads Bureau
           </div>
           <div style={{ fontSize: 11, color: C.muted, fontFamily: font.body, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 3 }}>
             AI-aangedreven campagne builder
           </div>
-          <div style={{ fontSize: 11, color: C.goudDim, fontFamily: font.body, letterSpacing: ".5px" }}>
+          <div style={{ fontSize: 11, color: C.muted, fontFamily: font.body, letterSpacing: ".5px" }}>
             Powered by Verdify · verdify.eu
           </div>
         </div>
