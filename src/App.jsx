@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-const VERDIFY_LOGO = ""; // Logo wordt geladen via publieke URL
+const VERDIFY_LOGO = ""; // Logo via URL
 
 // ─── API KEY CONTEXT ─────────────────────────────────────────────────────────
 // Standalone HTML mode: user provides their Anthropic API key once.
@@ -103,12 +103,12 @@ function downloadHtml(content, filename) {
   h1{font-family:'Cormorant Garamond',serif;color:#1a1614;border-bottom:2px solid #c9a84c;padding-bottom:14px;font-size:2.4rem;font-weight:700;letter-spacing:-.5px}
   h2{font-family:'Cormorant Garamond',serif;color:#2a2218;margin-top:52px;font-size:1.6rem;font-weight:600}
   .card{background:#fff;border:1px solid #e8e0d0;border-radius:14px;padding:28px;margin:18px 0;box-shadow:0 4px 20px rgba(0,0,0,.06)}
-  .badge{display:inline-block;background:#fdf5e0;border:1.5px solid #c9a84c;color:#8a6a10;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600;margin:4px;letter-spacing:.3px}
-  .hook{font-size:10px;background:#1a1614;color:#c9a84c;padding:4px 12px;border-radius:6px;display:inline-block;margin-bottom:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
-  pre{background:#f5f0e8;border:1px solid #e0d5c0;padding:18px;border-radius:10px;white-space:pre-wrap;font-size:12px;word-break:break-word;font-family:'Courier New',monospace;color:#2a2218}
-  .concept{font-weight:700;color:#8a6a10;font-size:.95rem}
+  .badge{display:inline-block;background:#FDF5DC;border:1.5px solid #D4A847;color:#8a6a10;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600;margin:4px;letter-spacing:.3px}
+  .hook{font-size:10px;background:#1C2333;color:#D4A847;padding:4px 12px;border-radius:6px;display:inline-block;margin-bottom:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+  pre{background:#F0EFE9;border:1px solid #e0d5c0;padding:18px;border-radius:10px;white-space:pre-wrap;font-size:12px;word-break:break-word;font-family:'Courier New',monospace;color:#2a2218}
+  .concept{font-weight:700;color:#9A7820;font-size:.95rem}
   .why{color:#8a7e6e;font-style:italic;font-size:.88rem;margin:6px 0}
-  .opbouw{font-size:.78rem;color:#c9a84c;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+  .opbouw{font-size:.78rem;color:#D4A847;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
 </style></head><body>${content}</body></html>`;
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -2471,7 +2471,7 @@ function Stap8({ onBack, onNaarEvaluatie }) {
         <button onClick={onBack} style={{ background: C.goudLight, border: `1px solid ${C.borderGold}`, borderRadius: 10, padding: "10px 20px", color: C.goud, fontFamily: font.body, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
           ← Terug naar advertenties
         </button>
-        <button onClick={onNaarEvaluatie} style={{ background: "linear-gradient(135deg,#c9a84c,#e2bf6a)", border: "none", borderRadius: 10, padding: "10px 20px", color: "#1a1208", fontFamily: font.body, fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}>
+        <button onClick={onNaarEvaluatie} style={{ background: `linear-gradient(135deg,${C.goud},${C.goudBright})`, border: "none", borderRadius: 10, padding: "10px 20px", color: "#1a1208", fontFamily: font.body, fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}>
           📊 Evalueer lopende campagnes →
         </button>
       </div>
@@ -2677,8 +2677,8 @@ function Stap9({ bedrijf, csvData, onBack }) {
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;color:#1a1208;background:#fff;padding:40px;max-width:800px;margin:0 auto}
-.header{border-bottom:3px solid #c9a84c;padding-bottom:20px;margin-bottom:24px}
-.header h1{font-size:22px;color:#c9a84c;margin-bottom:4px}
+.header{border-bottom:3px solid #D4A847;padding-bottom:20px;margin-bottom:24px}
+.header h1{font-size:22px;color:#D4A847;margin-bottom:4px}
 .header .sub{font-size:12px;color:#6b6050}
 .sh{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:1px;padding:7px 12px;border-radius:6px;margin:16px 0 6px}
 .stop{background:#ffeeee;color:#cc2200;border-left:4px solid #cc2200}
@@ -2686,7 +2686,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;color:#1a1208;background:#fff;paddi
 .verd{background:#eeffee;color:#1a6b1a;border-left:4px solid #1a6b1a}
 .schaal{background:#e8f0ff;color:#1a3a8a;border-left:4px solid #1a3a8a}
 .guard{background:#fff3e0;color:#b05000;border-left:4px solid #b05000}
-.fat{background:#fdf5e0;color:#c9a84c;border-left:4px solid #c9a84c}
+.fat{background:#FDF5DC;color:#D4A847;border-left:4px solid #D4A847}
 .sum{background:#f5f0ff;color:#4a2a8a;border-left:4px solid #4a2a8a}
 .i-stop{background:#fff5f5;border:1px solid #ffcccc;border-radius:5px;padding:7px 12px;margin-bottom:5px;font-size:13px;color:#5a0000;line-height:1.6}
 .i-opt{background:#fffbf0;border:1px solid #f0d880;border-radius:5px;padding:7px 12px;margin-bottom:5px;font-size:13px;color:#5a3000;line-height:1.6}
@@ -2962,7 +2962,7 @@ export default function App() {
 
 
       {/* Header */}
-      <div style={{ background: "linear-gradient(90deg, #e8f0e8 0%, #ece6d8 40%)", borderBottom: `1px solid ${C.border}`, padding: "0 28px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 4px 32px rgba(0,0,0,.5)" }}>
+      <div style={{ background: C.navy, borderBottom: "1px solid #2E3D58", padding: "0 28px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 8px 40px rgba(28,35,51,.6)" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{
@@ -3016,11 +3016,14 @@ export default function App() {
           boxShadow: "0 2px 12px rgba(0,0,0,.4)",
           flexShrink: 0,
         }}>
-          <img
-            src={VERDIFY_LOGO}
-            alt="Verdify"
-            style={{ height: 64, width: "auto", objectFit: "contain", display: "block" }}
-          />
+          {VERDIFY_LOGO
+            ? <img src={VERDIFY_LOGO} alt="Verdify" style={{ height: 64, width: "auto", objectFit: "contain", display: "block" }} />
+            : <div style={{ height: 64, display: "flex", alignItems: "center", padding: "0 8px" }}>
+                <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 26, color: C.navy, letterSpacing: "-.5px" }}>
+                  <span style={{ color: C.goud }}>V</span>erdify
+                </div>
+              </div>
+          }
         </div>
         <div>
           <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 22, color: C.text, letterSpacing: "-.3px", marginBottom: 4, lineHeight: 1 }}>
