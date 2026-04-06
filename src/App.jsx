@@ -1728,7 +1728,7 @@ function Stap1({ data, setData, onNext, onHelp }) {
 
 // ─── STAP 2 ─────────────────────────────────────────────────────────────────
 
-function Stap2({ bedrijf, onCsvData, onNext, onHelp }) {
+function Stap2({ bedrijf, onCsvData, onNext, onHelp, onBack }) {
   const [csvText, setCsvText] = useState("");
   const [handmatig, setHandmatig] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1786,7 +1786,10 @@ Alleen de JSON array, geen uitleg.`
       </div>
       <Textarea label="Of beschrijf je doelgroep handmatig" value={handmatig} onChange={setHandmatig}
         placeholder="bv. Zaakvoerders van KMO's in Vlaanderen, 35-55 jaar…" rows={5} />
-      {loading ? <Loader text="Co-pilot analyseert je doelgroep" stappen={analyseStappen} /> : <Btn onClick={analyseer}>Co-pilot: bouw segmenten →</Btn>}
+      <div style={{ display:"flex", gap:12, alignItems:"center", flexWrap:"wrap" }}>
+        <Btn variant="ghost" onClick={onBack} small>← Terug</Btn>
+        {loading ? <Loader text="Co-pilot analyseert je doelgroep" stappen={analyseStappen} /> : <Btn onClick={analyseer}>Co-pilot: bouw segmenten →</Btn>}
+      </div>
     </Card>
   );
 }
@@ -1809,7 +1812,7 @@ function SegmentKaart({ seg }) {
   );
 }
 
-function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
+function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp, onBack }) {
   const [reviews, setReviews] = useState("");
   const [zoekData, setZoekData] = useState("");
   const [jsonOpen, setJsonOpen] = useState(false);
@@ -2166,17 +2169,20 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
           ℹ️ Zoekresultaten van reviews en concurrenten worden meegenomen in de analyse.
         </div>
       )}
-      {loading
-        ? <Loader text="Co-pilot analyseert pijnpunten" stappen={pijnStappen} />
-        : <Btn onClick={analyseer}>Co-pilot: analyseer pijnpunten →</Btn>
-      }
+      <div style={{ display:"flex", gap:12, alignItems:"center", flexWrap:"wrap" }}>
+        <Btn variant="ghost" onClick={onBack} small>← Terug</Btn>
+        {loading
+          ? <Loader text="Co-pilot analyseert pijnpunten" stappen={pijnStappen} />
+          : <Btn onClick={analyseer}>Co-pilot: analyseer pijnpunten →</Btn>
+        }
+      </div>
     </Card>
   );
 }
 
 // ─── STAP 4 ─────────────────────────────────────────────────────────────────
 
-function Stap4({ pijnpunten, gekozen, setGekozen, onNext, bedrijf, onHelp }) {
+function Stap4({ pijnpunten, gekozen, setGekozen, onNext, bedrijf, onHelp, onBack }) {
   const toggle = (i) => {
     if (gekozen.includes(i)) setGekozen(gekozen.filter(x => x !== i));
     else if (gekozen.length < 6) setGekozen([...gekozen, i]);
@@ -2202,7 +2208,10 @@ function Stap4({ pijnpunten, gekozen, setGekozen, onNext, bedrijf, onHelp }) {
           );
         })}
       </div>
-      <Btn onClick={onNext} disabled={gekozen.length < 2}>Matrix bouwen → ({gekozen.length} gekozen)</Btn>
+      <div style={{ display:"flex", gap:12, alignItems:"center", flexWrap:"wrap" }}>
+        <Btn variant="ghost" onClick={onBack} small>← Terug</Btn>
+        <Btn onClick={onNext} disabled={gekozen.length < 2}>Matrix bouwen → ({gekozen.length} gekozen)</Btn>
+      </div>
     </Card>
   );
 }
@@ -3658,7 +3667,7 @@ function TrialBanner({ trialActief, trialGebruikt, stapBereikt, onReset }) {
   if (!trialActief && !trialGebruikt) return null;
 
   if (trialGebruikt) return (
-    <div style={{ background:"linear-gradient(90deg,#1D4D33,#2C6E49)", borderBottom:"3px solid #4ADE80", padding:"16px 28px" }}>
+    <div style={{ background:"linear-gradient(90deg,#1D4D33,#2C6E49)", borderBottom:"3px solid #4ADE80", padding:"16px 28px", position:"sticky", top:64, zIndex:99 }}>
       <div style={{ maxWidth:900, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:12 }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <span style={{ fontSize:24 }}>🎉</span>
@@ -3682,7 +3691,7 @@ function TrialBanner({ trialActief, trialGebruikt, stapBereikt, onReset }) {
   // Trial actief en nog niet gebruikt
   const pct = Math.min(100, Math.round(((stapBereikt - 1) / 9) * 100));
   return (
-    <div style={{ background:"linear-gradient(90deg,#4A1A8A,#7B3FD0)", borderBottom:"3px solid #C8A8F0", padding:"12px 28px" }}>
+    <div style={{ background:"linear-gradient(90deg,#4A1A8A,#7B3FD0)", borderBottom:"3px solid #C8A8F0", padding:"12px 28px", position:"sticky", top:64, zIndex:99 }}>
       <div style={{ maxWidth:900, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:12 }}>
         <div style={{ display:"flex", alignItems:"center", gap:14 }}>
           <div style={{ background:"rgba(255,255,255,.2)", border:"1.5px solid rgba(255,255,255,.4)", borderRadius:8, padding:"4px 12px", fontFamily:font.body, fontWeight:800, fontSize:11, color:"#fff", letterSpacing:"1.5px", textTransform:"uppercase", whiteSpace:"nowrap" }}>
@@ -3709,27 +3718,30 @@ export default function App() {
   const [stap, setStap] = useState(1);
   const [bedrijf, setBedrijf] = useState({ naam: "", url: "", aanbod: "", locatie: "" });
   // Trial mechanisme
-  const [trialActief] = useState(() => {
+  const [trialActief, setTrialActief] = useState(false);
+  const [trialGebruikt, setTrialGebruikt] = useState(false);
+
+  useEffect(() => {
+    // Detecteer ?trial=1 na mount (werkt in alle browsers)
     try {
-      // Meerdere manieren om de URL parameter te lezen
       const search = window.location.search || "";
-      const hash = window.location.hash || "";
-      if (search.includes("trial=1") || hash.includes("trial=1")) return true;
-      return new URL(window.location.href).searchParams.get("trial") === "1";
-    } catch { return false; }
-  });
-  const [trialGebruikt, setTrialGebruikt] = useState(() => {
-    try { return localStorage.getItem("mab_trial_used") === "1"; } catch { return false; }
-  });
+      const href = window.location.href || "";
+      const isTrial = search.includes("trial=1") || href.includes("trial=1");
+      setTrialActief(isTrial);
+    } catch { /* */ }
+    // Controleer localStorage
+    try {
+      if (localStorage.getItem("mab_trial_used") === "1") setTrialGebruikt(true);
+    } catch { /* */ }
+  }, []);
+
   const resetTrial = () => {
     try { localStorage.removeItem("mab_trial_used"); } catch { /* */ }
     setTrialGebruikt(false);
   };
   const markeerTrialGebruikt = () => {
-    if (trialActief && !trialGebruikt) {
-      try { localStorage.setItem("mab_trial_used", "1"); } catch { /* */ }
-      setTrialGebruikt(true);
-    }
+    try { localStorage.setItem("mab_trial_used", "1"); } catch { /* */ }
+    setTrialGebruikt(true);
   };
   const [segmenten, setSegmenten] = useState(FALLBACK_SEGMENTEN);
   const [pijnpunten, setPijnpunten] = useState(FALLBACK_PIJNPUNTEN);
@@ -3777,12 +3789,22 @@ export default function App() {
         </div>
       </div>
 
+      {/* ── Trial Banner — altijd zichtbaar direct onder nav ── */}
+      {(trialActief || trialGebruikt) && (
+        <TrialBanner
+          trialActief={trialActief}
+          trialGebruikt={trialGebruikt}
+          stapBereikt={stap}
+          onReset={resetTrial}
+        />
+      )}
+
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 80px" }}>
         <ProgressBar stap={stap} />
         {stap === 1 && <Stap1 data={bedrijf} setData={setBedrijf} onNext={() => setStap(2)} onHelp={() => setHelpOpen(true)} />}
-        {stap === 2 && <Stap2 bedrijf={bedrijf} onCsvData={setCsvData} onNext={segs => { setSegmenten(segs); setStap(3); }} onHelp={() => setHelpOpen(true)} />}
-        {stap === 3 && <Stap3 bedrijf={bedrijf} segmenten={segmenten} setSegmenten={setSegmenten} onNext={pp => { setPijnpunten(pp); setStap(4); }} onHelp={() => setHelpOpen(true)} />}
-        {stap === 4 && <Stap4 pijnpunten={pijnpunten} gekozen={gekozenPijnpunten} setGekozen={setGekozenPijnpunten} onNext={() => setStap(5)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} />}
+        {stap === 2 && <Stap2 bedrijf={bedrijf} onCsvData={setCsvData} onNext={segs => { setSegmenten(segs); setStap(3); }} onHelp={() => setHelpOpen(true)} onBack={() => setStap(1)} />}
+        {stap === 3 && <Stap3 bedrijf={bedrijf} segmenten={segmenten} setSegmenten={setSegmenten} onNext={pp => { setPijnpunten(pp); setStap(4); }} onHelp={() => setHelpOpen(true)} onBack={() => setStap(2)} />}
+        {stap === 4 && <Stap4 pijnpunten={pijnpunten} gekozen={gekozenPijnpunten} setGekozen={setGekozenPijnpunten} onNext={() => setStap(5)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} onBack={() => setStap(3)} />}
         {stap === 5 && <Stap5 segmenten={segmenten} pijnpunten={pijnpunten} gekozenPijnpunten={gekozenPijnpunten} combinaties={combinaties} setCombinaties={setCombinaties} onNext={() => setStap(6)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} />}
         {stap === 6 && <Stap6 bedrijf={bedrijf} combinaties={combinaties} segmenten={segmenten} pijnpunten={pijnpunten} onNext={c => { setCampagne(c); setStap(7); }} onBack={() => setStap(5)} onHelp={() => setHelpOpen(true)} />}
         {stap === 7 && <Stap7 bedrijf={bedrijf} segmenten={segmenten} pijnpunten={pijnpunten} combinaties={combinaties} campagne={campagne} onBack={() => setStap(6)} onHelp={() => setHelpOpen(true)} onNaarMeta={() => setStap(8)} />}
