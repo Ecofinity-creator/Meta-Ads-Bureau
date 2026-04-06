@@ -1481,15 +1481,28 @@ function AanbodSuggester({ naam, url, onInsert }) {
 function BudgetGuardianModule({ aanbod, campagne }) {
   const sector = detecteerSector(aanbod);
   const playbook = sector ? SECTOR_PLAYBOOKS[sector] : null;
-  const [dagbudget, setDagbudget] = useState(15);
-  const cplMin = playbook ? parseInt(playbook.typisch_cpl.replace(/[^0-9]/g, "")) || 25 : 25;
-  const cplMax = playbook ? parseInt(playbook.typisch_cpl.split("–")[1]?.replace(/[^0-9]/g, "")) || 60 : 60;
-  const dagBudgetNum = parseFloat(dagbudget) || 15;
+  const [dagbudget, setDagbudget] = useState(20);
+
+  // Parse "€25–€60" correct: splits EERST op het streepje, dan pas cijfers extraheren
+  const parseEuroBedrag = (str) => {
+    if (!str) return null;
+    const match = (str + "").match(/\d+/);
+    return match ? parseInt(match[0]) : null;
+  };
+  const cplStr = playbook ? playbook.typisch_cpl : "€25–€60";
+  const delen = cplStr.split(/[–\-]/);
+  const cplMin = parseEuroBedrag(delen[0]) || 25;
+  const cplMax = parseEuroBedrag(delen[1]) || cplMin + 30;
+
+  const dagBudgetNum = Math.max(1, parseInt(dagbudget) || 20);
+  // Minimaal 3 leads nodig voor beslissing
   const testDagenMin = Math.ceil((cplMin * 3) / dagBudgetNum);
   const testDagenMax = Math.ceil((cplMax * 3) / dagBudgetNum);
   const totaalMin = Math.round(testDagenMin * dagBudgetNum);
   const totaalMax = Math.round(testDagenMax * dagBudgetNum);
-  const waarschuwing = dagBudgetNum < cplMin / 2;
+  // Waarschuwing als budget < helft van minimale CPL per dag (te weinig voor 1 lead/dag)
+  const minSinvolBudget = Math.ceil(cplMin / 3);
+  const waarschuwing = dagBudgetNum < minSinvolBudget;
 
   return (
     <div style={{ background: "#F8F4FF", border: "1.5px solid #C8A8F0", borderRadius: 12, padding: "16px 20px", marginBottom: 20 }}>
@@ -1504,20 +1517,24 @@ function BudgetGuardianModule({ aanbod, campagne }) {
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
         <label style={{ fontFamily: font.body, fontSize: 12, color: "#5A2D8A", fontWeight: 600 }}>Dagbudget:</label>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input type="range" min="5" max="100" step="5" value={dagbudget}
-            onChange={e => setDagbudget(e.target.value)}
-            style={{ width: 120, accentColor: "#7B3FD0" }} />
+          <input type="range" min="5" max={Math.max(150, cplMax * 3)} step="5" value={dagbudget}
+            onChange={e => setDagbudget(parseInt(e.target.value))}
+            style={{ width: 140, accentColor: "#7B3FD0", cursor: "pointer" }} />
           <span style={{ fontFamily: font.body, fontWeight: 700, fontSize: 15, color: "#5A2D8A", minWidth: 52 }}>€{dagbudget}/dag</span>
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: waarschuwing ? 12 : 0 }}>
         <div style={{ background: "white", borderRadius: 8, padding: "10px 12px", border: "1px solid #D8B8F8", textAlign: "center" }}>
           <div style={{ fontFamily: font.body, fontSize: 10, color: "#8A70A8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>Testperiode</div>
-          <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 16, color: "#3D1A6A" }}>{testDagenMin}–{testDagenMax} <span style={{ fontSize: 11, fontWeight: 400 }}>dagen</span></div>
+          <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 16, color: "#3D1A6A" }}>
+            {testDagenMin === testDagenMax ? testDagenMin : `${testDagenMin}–${testDagenMax}`} <span style={{ fontSize: 11, fontWeight: 400 }}>dagen</span>
+          </div>
         </div>
         <div style={{ background: "white", borderRadius: 8, padding: "10px 12px", border: "1px solid #D8B8F8", textAlign: "center" }}>
           <div style={{ fontFamily: font.body, fontSize: 10, color: "#8A70A8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>Minimaal budget</div>
-          <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 16, color: "#3D1A6A" }}>€{totaalMin}–€{totaalMax}</div>
+          <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 16, color: "#3D1A6A" }}>
+            {totaalMin === totaalMax ? `€${totaalMin}` : `€${totaalMin}–€${totaalMax}`}
+          </div>
         </div>
         <div style={{ background: "white", borderRadius: 8, padding: "10px 12px", border: "1px solid #D8B8F8", textAlign: "center" }}>
           <div style={{ fontFamily: font.body, fontSize: 10, color: "#8A70A8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>Min. leads nodig</div>
@@ -1526,7 +1543,7 @@ function BudgetGuardianModule({ aanbod, campagne }) {
       </div>
       {waarschuwing && (
         <div style={{ background: "#FEF0F0", border: "1px solid #F0A0A0", borderRadius: 8, padding: "8px 12px", fontFamily: font.body, fontSize: 12, color: "#8A1A1A", lineHeight: 1.6 }}>
-          ⚠ <strong>Pas op:</strong> €{dagbudget}/dag is waarschijnlijk te laag voor je sector. Je haalt geen 3 leads in redelijke tijd. Verhoog naar minstens €{Math.ceil(cplMin / 2)}/dag.
+          ⚠ <strong>Pas op:</strong> €{dagbudget}/dag is te laag om snel genoeg 3 leads te verzamelen. Verhoog naar minstens <strong>€{minSinvolBudget}/dag</strong> voor zinvolle testresultaten.
         </div>
       )}
     </div>
@@ -2959,7 +2976,7 @@ function berekeningSignalen(rows) {
 
 // ─── STAP 9 — CAMPAGNE EVALUATIE (versterkt) ─────────────────────────────────
 
-function Stap9({ bedrijf, csvData, onBack }) {
+function Stap9({ bedrijf, csvData, onBack, onTrialVoltooid }) {
   const [handmatig, setHandmatig] = useState(csvData || "");
   const [loading, setLoading] = useState(false);
   const [resultaat, setResultaat] = useState(null);
@@ -2990,6 +3007,7 @@ function Stap9({ bedrijf, csvData, onBack }) {
         prompt, 1500
       );
       setResultaat(raw);
+      if (onTrialVoltooid) onTrialVoltooid();
     } catch(e) {
       setFout("Fout: " + (e.message || String(e)).substring(0, 150));
     }
@@ -3566,11 +3584,67 @@ body{font-family:'Segoe UI',Arial,sans-serif;color:#1E2A23;background:#F8F7F4;pa
 }
 
 
+// ─── TRIAL MECHANISME ────────────────────────────────────────────────────────
+
+function TrialBanner({ trialActief, trialGebruikt, stapBereikt }) {
+  if (!trialActief && !trialGebruikt) return null;
+  if (trialGebruikt) return (
+    <div style={{ background:"#1D4D33", borderBottom:"2px solid #2C6E49", padding:"14px 28px" }}>
+      <div style={{ maxWidth:900, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:12 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <span style={{ fontSize:18 }}>✅</span>
+          <div>
+            <div style={{ fontFamily:font.display, fontWeight:700, fontSize:15, color:"#fff" }}>Je gratis proefrun is voltooid</div>
+            <div style={{ fontSize:12, color:"rgba(255,255,255,.7)", fontFamily:font.body }}>Je hebt de volledige wizard doorlopen. Upgrade voor onbeperkt gebruik.</div>
+          </div>
+        </div>
+        <a href="https://verdify.eu" target="_blank" rel="noopener" style={{ background:"#4ADE80", color:"#1D4D33", fontFamily:font.body, fontWeight:800, fontSize:13, padding:"10px 22px", borderRadius:9, textDecoration:"none", whiteSpace:"nowrap" }}>
+          Upgrade → Volledig abonnement
+        </a>
+      </div>
+    </div>
+  );
+  // Trial actief maar nog niet gebruikt
+  const stappen_gedaan = stapBereikt - 1;
+  const pct = Math.min(100, Math.round((stappen_gedaan / 9) * 100));
+  return (
+    <div style={{ background:"#F8F4FF", borderBottom:"2px solid #C8A8F0", padding:"10px 28px" }}>
+      <div style={{ maxWidth:900, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:12 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <span style={{ background:"#7B3FD0", color:"#fff", fontFamily:font.body, fontWeight:800, fontSize:11, padding:"3px 10px", borderRadius:12, letterSpacing:"1px" }}>GRATIS PROEFRUN</span>
+          <div style={{ fontFamily:font.body, fontSize:13, color:"#3D1A6A" }}>
+            Stap {stapBereikt} van 9 · Doorloop alle stappen voor een volledige evaluatie
+          </div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ width:120, height:6, background:"#E8D8F8", borderRadius:3, overflow:"hidden" }}>
+            <div style={{ width:pct+"%", height:"100%", background:"#7B3FD0", borderRadius:3, transition:"width .4s" }} />
+          </div>
+          <span style={{ fontFamily:font.body, fontSize:12, color:"#5A2D8A", fontWeight:600 }}>{pct}%</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [stap, setStap] = useState(1);
   const [bedrijf, setBedrijf] = useState({ naam: "", url: "", aanbod: "", locatie: "" });
+  // Trial mechanisme
+  const [trialActief] = useState(() => {
+    try { return new URL(window.location.href).searchParams.get("trial") === "1"; } catch { return false; }
+  });
+  const [trialGebruikt, setTrialGebruikt] = useState(() => {
+    try { return localStorage.getItem("mab_trial_used") === "1"; } catch { return false; }
+  });
+  const markeerTrialGebruikt = () => {
+    if (trialActief && !trialGebruikt) {
+      try { localStorage.setItem("mab_trial_used", "1"); } catch { /* */ }
+      setTrialGebruikt(true);
+    }
+  };
   const [segmenten, setSegmenten] = useState(FALLBACK_SEGMENTEN);
   const [pijnpunten, setPijnpunten] = useState(FALLBACK_PIJNPUNTEN);
   const [gekozenPijnpunten, setGekozenPijnpunten] = useState([]);
@@ -3627,7 +3701,7 @@ export default function App() {
         {stap === 6 && <Stap6 bedrijf={bedrijf} combinaties={combinaties} segmenten={segmenten} pijnpunten={pijnpunten} onNext={c => { setCampagne(c); setStap(7); }} onBack={() => setStap(5)} onHelp={() => setHelpOpen(true)} />}
         {stap === 7 && <Stap7 bedrijf={bedrijf} segmenten={segmenten} pijnpunten={pijnpunten} combinaties={combinaties} campagne={campagne} onBack={() => setStap(6)} onHelp={() => setHelpOpen(true)} onNaarMeta={() => setStap(8)} />}
         {stap === 8 && <Stap8 onBack={() => setStap(7)} onNaarEvaluatie={() => setStap(9)} />}
-        {stap === 9 && <Stap9 bedrijf={bedrijf} csvData={csvData} onBack={() => setStap(8)} />}
+        {stap === 9 && <Stap9 bedrijf={bedrijf} csvData={csvData} onBack={() => setStap(8)} onTrialVoltooid={markeerTrialGebruikt} />}
       </div>
 
       <div style={{ borderTop: `1px solid ${C.border}`, background: C.bgMid, padding: "24px 40px", display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
