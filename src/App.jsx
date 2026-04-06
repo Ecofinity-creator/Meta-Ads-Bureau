@@ -344,6 +344,42 @@ const HELP_STATISCH = {
       "Meta Ads afbeeldingsspecificaties formaten",
       "Facebook advertentietekst tekenlimiet primary text"
     ]
+  },
+  8: {
+    titel: "Campagne instellen in Meta Ads Manager",
+    secties: [
+      {
+        icon: "📋",
+        kop: "Exacte stappen in Meta",
+        tekst: "1. Open business.facebook.com → Advertentiebeheer\n2. Klik 'Maken' → kies doelstelling (Leads of Verkoop)\n3. Stel campagnebudget in: aanbevolen €15-30/dag per advertentieset\n4. Maak per combinatie uit je matrix een aparte ADVERTENTIESET\n5. Doelgroep: locatie + leeftijd + geslacht exact zoals je segment\n6. Upload visual + plak tekst + stel CTA in\n7. Voeg bestemmings-URL in (landingspagina of leadformulier)"
+      },
+      {
+        icon: "🔑",
+        kop: "Handige snellinks",
+        links: [
+          { label: "Meta Advertentiebeheer", url: "https://business.facebook.com/adsmanager" },
+          { label: "Meta Pixel instellen", url: "https://business.facebook.com/events_manager" },
+          { label: "Meta Doelgroepen", url: "https://business.facebook.com/adsmanager/audiences" },
+        ]
+      }
+    ],
+    zoektermen: ["Meta Ads Manager tutorial", "Facebook advertentie instellen stap voor stap", "Meta Pixel installeren WordPress"]
+  },
+  9: {
+    titel: "Campagnedata exporteren voor analyse",
+    secties: [
+      {
+        icon: "📊",
+        kop: "Welke gegevens heb je nodig? (exacte Meta-kolommen)",
+        tekst: "Exporteer vanuit Meta Advertentiebeheer de volgende kolommen:\n\n📌 VERPLICHT voor basisanalyse:\n· Campagnenaam / Advertentiesetnaam / Advertentienaam\n· Besteed bedrag (€)\n· Bereik / Vertoningen / Frequentie\n· Klikken (alle) / CTR (alle)\n· Kosten per klik (CPC)\n· Resultaten (leads of aankopen)\n· Kosten per resultaat (CPL of CPA)\n\n📌 EXTRA voor diepere analyse:\n· Videoweergaven (25% / 50% / 100%)\n· Betrokkenheid (likes, reacties, shares)\n· Landingspagina-weergaven\n· Conversieratio\n· Kwaliteitsscore / Relevantiescore\n\n📌 HOE EXPORTEREN:\n1. Open Advertentiebeheer\n2. Selecteer datumbereik (min. 7 dagen)\n3. Klik 'Exporteren' → 'Exporteer tabeldata (.csv)'\n4. Upload het CSV-bestand hier"
+      },
+      {
+        icon: "💡",
+        kop: "Tip: minimum data voor betrouwbaar advies",
+        tekst: "· Minimum €30 besteed per advertentie voor een eerste oordeel\n· Minimum 3 leads of aankopen voor een CPL-vergelijking\n· Minimum 7 dagen looptijd (Meta heeft optimalisatietijd nodig)\n· Bij minder data: advies is indicatief, niet definitief"
+      }
+    ],
+    zoektermen: ["Meta Ads exporteren CSV", "Facebook advertentieresultaten downloaden", "Meta Ads Manager kolommen instellen"]
   }
 };
 
@@ -968,7 +1004,7 @@ function UspSuggester({ naam, url, onInsert }) {
         : sectorHint.includes("consult") || sectorHint.includes("advies") ? "consultancy"
         : "professionele dienstverlening";
       const sysprompt = "Je bent een marketing expert. Geef output ALLEEN als JSON object, geen uitleg, geen markdown blokken.";
-      const userprompt = "Genereer 6 sterke USPs voor " + naam + (url ? " (" + url + ")" : "") + " in de sector " + sector + ". Hoe communiceert dit type bedrijf op LinkedIn en Facebook? Verwerk die inzichten in de USPs. Geef output als JSON object met: sector (string), samenvatting (string, 2 zinnen), usps (array van exact 6 strings elk max 10 woorden), bronnen (lege array).";
+      const userprompt = "Zoek online wat " + naam + (url ? " (" + url + ")" : "") + " werkelijk aanbiedt en verkoopt. Dit is een ECHT bedrijf. Genereer 6 USPs die specifiek zijn voor DIT bedrijf, niet voor de sector in het algemeen. Gebruik hun echte onderscheidende factoren: locatie, specialisatie, ervaring, certificaten, werkwijze, garanties. Sector: " + sector + ". Output als JSON: sector (string), samenvatting (2 zinnen over dit specifieke bedrijf), usps (array van exact 6 strings elk max 10 woorden, specifiek voor dit bedrijf), bronnen (lege array).";
       const _key = getApiKey();
       const _hdrs = { "Content-Type": "application/json", "anthropic-version": "2023-06-01" };
       if (_key) _hdrs["x-api-key"] = _key;
@@ -1259,7 +1295,7 @@ function AanbodSuggester({ naam, url, onInsert }) {
         : sectorHint.includes("consult") || sectorHint.includes("advies") ? "consultancy"
         : "professionele dienstverlening";
       const sysprompt = "Je bent een marketing expert. Geef output ALLEEN als JSON, geen uitleg.";
-      const userprompt = "Schrijf aanbodprofiel voor " + naam + (url ? " (" + url + ")" : "") + " in sector " + sector + ". Hoe communiceert dit type bedrijf op sociale media? Verwerk die toon in de aanbodtekst. Output: JSON met diensten, prijs, doelgroep, positionering, aanbod_tekst (5-7 zinnen voor Meta Ads), bronnen (leeg array).";
+      const userprompt = "Zoek online naar het echte aanbod van " + naam + (url ? " (website: " + url + ")" : "") + ". Dit is een ECHT bedrijf — zoek hun specifieke producten, diensten en prijzen. Sector indicatie: " + sector + ". Schrijf een nauwkeurig aanbodprofiel gebaseerd op wat dit specifieke bedrijf verkoopt, niet op sectorgemiddelden. Output als JSON: diensten (specifiek voor dit bedrijf), prijs (hun echte prijsklasse indien gevonden), doelgroep (hun werkelijke doelgroep), positionering (hoe zij zichzelf onderscheiden), aanbod_tekst (5-7 zinnen specifiek over dit bedrijf voor Meta Ads), bronnen (leeg array).";
       const _key2 = getApiKey();
       const _url2 = window.location.protocol === "file:" ? "https://api.anthropic.com/v1/messages" : "/api";
       const _hdrs2 = { "Content-Type": "application/json", "anthropic-version": "2023-06-01" };
@@ -1700,7 +1736,11 @@ function Stap2({ bedrijf, onCsvData, onNext, onHelp }) {
       ]);
       const raw = await callClaude(
         "Je bent expert Meta Ads strateeg. Geef output ALLEEN als JSON array, geen uitleg.",
-        `Analyseer data voor "${bedrijf.naam}" met aanbod "${bedrijf.aanbod}". Data: ${d}.\nMaak 4 micro-segmenten.\nJSON: [{"id":1,"naam":"...","leeftijd":"35-44","geslacht":"Vrouw","kenmerken":"...","performance":"..."}]`
+`Analyseer data voor "${bedrijf.naam}" met aanbod "${bedrijf.aanbod}". Data: ${d}.
+Maak 4 DIVERSE micro-segmenten. Denk breder dan enkel zaakvoerders of professionals. Overweeg ook: gezinnen, particulieren, jongeren, senioren, KMO-medewerkers, zelfstandigen, renoveerders, huiseigenaars — afhankelijk van het aanbod.
+Varieer in: leeftijdsgroep, profiel (particulier vs. professioneel), motivatie, aankoopfase.
+JSON array van 4 objecten: [{"id":1,"naam":"[beschrijvend segment-label]","leeftijd":"[range]","geslacht":"[Man/Vrouw/Beide]","kenmerken":"[2-3 zinnen: wie zijn ze, wat drijft hen]","performance":"[verwachte Meta Ads respons voor dit segment]"}]
+Alleen de JSON array, geen uitleg.`
       );
       setAnalyseStappen([
         { tekst: "Data verwerkt ✓", klaar: true },
@@ -2232,13 +2272,14 @@ function Stap6({ bedrijf, combinaties, segmenten, pijnpunten, onNext, onBack, on
   const genereer = async () => {
     setLoading(true); setAiGegenereerd(true); setFout("");
     try {
-      const prompt = "Geef 4 campagne-insteken voor " + bedrijf.naam
-        + " met aanbod: " + (bedrijf.aanbod || "onbekend").substring(0, 150)
-        + ". Combinaties: " + samenvatting.substring(0, 200)
-        + ". Kies uit: Gratis Webinar, E-book of PDF Download, Online Challenge, Quiz-funnel, Directe Verkoop, Winactie, Gratis Consult of Demo, Brochure Download."
-        + " Geef een JSON array van 4 objecten met velden: type, omschrijving, doel, moeilijkheid."
-        + " doel is Leads of Verkoop. moeilijkheid is Laag, Middel of Hoog."
-        + " Geen uitleg. Alleen de JSON array.";
+      const prompt = "Genereer 4 CREATIEVE en DIVERSE campagne-insteken voor " + bedrijf.naam
+        + " (aanbod: " + (bedrijf.aanbod || "onbekend").substring(0, 150) + ")."
+        + " Doelgroepen en pijnpunten: " + samenvatting.substring(0, 200) + "."
+        + " BELANGRIJK: kies 4 VERSCHILLENDE types uit deze volledige lijst en wees creatief in de invulling:"
+        + " Gratis thuisbezoek of plaatsbepaald advies, Referral-campagne via tevreden klanten, Seizoensactie met deadline, Educatieve minicursus (3 emails), Gratis scan of audit, Voor-en-na testimonial campagne, Exclusief early access aanbod, Lokale event of opendeur, Weggeefactie met instapproduct, Vergelijkingscampagne (wij vs. andere aanpak), Community challenge, Garantiecampagne, Gratis sample of proefperiode, Storytelling-campagne rond een klantcase, Urgentie-campagne met beperkte plaatsen."
+        + " Kies de 4 meest passende voor DIT specifieke bedrijf en deze doelgroepen. Wees specifiek in de omschrijving."
+        + " JSON array van 4 objecten: type (kort label), omschrijving (2 zinnen specifiek voor dit bedrijf), doel (Leads of Verkoop), moeilijkheid (Laag/Middel/Hoog), onderscheid (1 zin waarom dit anders is dan standaard)."
+        + " Alleen de JSON array.";
       const raw = await callClaude(
         "Je bent Meta Ads strateeg. Geef output ALLEEN als JSON array van 4 objecten. Geen uitleg, geen markdown.",
         prompt, 600
@@ -2313,8 +2354,9 @@ function Stap6({ bedrijf, combinaties, segmenten, pijnpunten, onNext, onBack, on
                 onMouseEnter={e => { if (!sel) e.currentTarget.style.borderColor = C.borderGold; }}
                 onMouseLeave={e => { if (!sel) e.currentTarget.style.borderColor = C.border; }}
               >
-                <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 18, marginBottom: 8, color: sel ? C.groen : C.text }}>{sel ? "✓ " : ""}{s.type ?? ""}</div>
-                <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, marginBottom: 14 }}>{s.omschrijving ?? ""}</div>
+                <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 17, marginBottom: 8, color: sel ? C.groen : C.text }}>{sel ? "✓ " : ""}{s.type ?? ""}</div>
+                <div style={{ fontSize: 13, color: C.textSoft, lineHeight: 1.65, marginBottom: 10 }}>{s.omschrijving ?? ""}</div>
+                {s.onderscheid && <div style={{ fontSize: 12, color: C.groen, fontStyle: "italic", marginBottom: 10, paddingLeft: 8, borderLeft: `2px solid ${C.borderGreen}` }}>{s.onderscheid}</div>}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Badge>{s.doel ?? ""}</Badge>
                   <span style={{ display: "inline-block", padding: "4px 13px", borderRadius: 20, fontSize: 12, fontWeight: 600, fontFamily: font.body, background: "transparent", border: `1px solid ${moeilijkheidKleur(s.moeilijkheid)}`, color: moeilijkheidKleur(s.moeilijkheid) }}>{s.moeilijkheid ?? ""}</span>
@@ -2923,7 +2965,7 @@ function Stap9({ bedrijf, csvData, onBack }) {
         + (bedrijf.aanbod ? " Aanbod: " + bedrijf.aanbod.substring(0, 100) + "." : "")
         + sectorCtx
         + " Data: " + data.substring(0, 2500)
-        + " Geef eerst een OWNER SUMMARY in 3 genummerde punten: 1) wat de ondernemer VANDAAG eerst doet 2) wat hij laat staan 3) wat hij als eerste oplost. Gebruik het format: 1. [actie] 2. [niet doen] 3. [eerst oplossen]. Dan voor elke campagne/advertentie: ---CAMPAGNE: [naam] BESLISSING: [STOP DIRECT of OPTIMALISEER of BLIJVEN LOPEN of OPSCHALEN] PRIORITEIT: [1=eerste, 2=daarna, 3=mag wachten] VERTROUWEN: [LAAG - te weinig data of MATIG - indicatief of STERK - betrouwbaar] REDEN: [1 zin] ACTIE: [1 concrete stap] --- Sluit af met ===BUDGET GUARDIAN [max 3 punten] ===CREATIEVE FATIGUE Geef: SIGNALEN: [komma-gescheiden: bijv. CTR daalt, frequentie stijgt, CPC stijgt] DIAGNOSE: [1 zin oorzaak] NIEUWE HOOK: [1 concrete nieuwe invalshoek om te testen] ===DAGELIJKSE SAMENVATTING [zelfde als OWNER SUMMARY maar uitgebreider]. Nederlands, geen jargon.";
+        + " Geef eerst een OWNER SUMMARY. Gebruik EXACT dit format (op aparte regels):\n1. [wat de ondernemer VANDAAG als eerste doet]\n2. [wat hij laat staan of niet aanraakt]\n3. [wat hij als eerste oplost] Dan voor elke campagne/advertentie: ---CAMPAGNE: [naam] BESLISSING: [STOP DIRECT of OPTIMALISEER of BLIJVEN LOPEN of OPSCHALEN] PRIORITEIT: [1=eerste, 2=daarna, 3=mag wachten] VERTROUWEN: [LAAG - te weinig data of MATIG - indicatief of STERK - betrouwbaar] REDEN: [1 zin] ACTIE: [1 concrete stap] --- Sluit af met ===BUDGET GUARDIAN [max 3 punten] ===CREATIEVE FATIGUE Geef: SIGNALEN: [komma-gescheiden: bijv. CTR daalt, frequentie stijgt, CPC stijgt] DIAGNOSE: [1 zin oorzaak] NIEUWE HOOK: [1 concrete nieuwe invalshoek om te testen] ===DAGELIJKSE SAMENVATTING [zelfde als OWNER SUMMARY maar uitgebreider]. Nederlands, geen jargon.";
 
       const raw = await callClaude(
         "Je bent een eerlijke Meta Ads coach voor kleine ondernemers. Geef scherpe, bruikbare adviezen.",
@@ -3035,10 +3077,18 @@ function Stap9({ bedrijf, csvData, onBack }) {
         } else if (r.startsWith("ACTIE:")) {
           huidig.actie = r.replace("ACTIE:", "").trim();
         } else if (!huidig.beslissing) {
-          if (up.includes("STOP DIRECT") || up.includes("STOPPEN")) huidig.beslissing = "STOP DIRECT";
-          else if (up.includes("OPTIMALISEER")) huidig.beslissing = "OPTIMALISEER";
-          else if (up.includes("OPSCHALEN")) huidig.beslissing = "OPSCHALEN";
-          else if (up.includes("BLIJVEN LOPEN") || up.includes("VERDER")) huidig.beslissing = "BLIJVEN LOPEN";
+          if (up.includes("STOP DIRECT") || up.includes("STOPPEN") || up.includes("PAUZEER")) huidig.beslissing = "STOP DIRECT";
+          else if (up.includes("OPTIMALISEER") || up.includes("BIJSTUREN") || up.includes("AANPASSEN")) huidig.beslissing = "OPTIMALISEER";
+          else if (up.includes("OPSCHALEN") || up.includes("SCHAAL OP") || up.includes("VERHOOG BUDGET")) huidig.beslissing = "OPSCHALEN";
+          else if (up.includes("BLIJVEN LOPEN") || up.includes("VERDER") || up.includes("LATEN LOPEN")) huidig.beslissing = "BLIJVEN LOPEN";
+          else if (r.startsWith("REDEN:") || r.startsWith("ACTIE:")) { /* skip */ }
+          else if (huidig.naam && !huidig.beslissing && r.length > 5) {
+            // Als er na de naam nog geen beslissing is, kijk in de tekst
+            const tekst = r.toLowerCase();
+            if (tekst.includes("stop") || tekst.includes("pauz")) huidig.beslissing = "STOP DIRECT";
+            else if (tekst.includes("optim") || tekst.includes("verbeter")) huidig.beslissing = "OPTIMALISEER";
+            else if (tekst.includes("schaal") || tekst.includes("verhoog")) huidig.beslissing = "OPSCHALEN";
+          }
         }
       } else if (sectie) {
         sectieBuffer.push(r);
@@ -3061,7 +3111,8 @@ function Stap9({ bedrijf, csvData, onBack }) {
       "OPSCHALEN":     { dot:"#1a3a8a", bg:"#f0f5ff", brd:"#aac0ee", txt:"#00115a", icoon:"🚀", label:"Opschalen" },
     };
     const CampagneKaart = ({ blok, idx }) => {
-      const kl = kleurMap[blok.beslissing] || kleurMap["BLIJVEN LOPEN"];
+      const beslissing = blok.beslissing || "BLIJVEN LOPEN";
+      const kl = kleurMap[beslissing] || kleurMap["BLIJVEN LOPEN"];
       return (
         <div key={idx} style={{ border:`2px solid ${kl.brd}`, borderRadius:12, marginBottom:12, overflow:"hidden" }}>
           <div style={{ background:kl.bg, borderBottom:`1px solid ${kl.brd}`, padding:"12px 18px" }}>
@@ -3083,9 +3134,9 @@ function Stap9({ bedrijf, csvData, onBack }) {
                     {blok.vertrouwen==="STERK" ? "✓ Betrouwbaar" : blok.vertrouwen==="MATIG" ? "~ Indicatief" : "⚠ Weinig data"}
                   </span>
                 )}
-                <div style={{ display:"flex", alignItems:"center", gap:7, background:kl.bg, border:`2px solid ${kl.dot}`, borderRadius:20, padding:"5px 14px" }}>
-                  <div style={{ width:14, height:14, borderRadius:"50%", background:kl.dot, flexShrink:0, boxShadow:`0 0 0 3px ${kl.dot}33` }} />
-                  <span style={{ fontFamily:font.body, fontWeight:800, fontSize:12, color:kl.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl.icoon} {kl.label}</span>
+                <div style={{ display:"flex", alignItems:"center", gap:8, background:kl.bg, border:`2.5px solid ${kl.dot}`, borderRadius:24, padding:"6px 16px", boxShadow:`0 2px 8px ${kl.dot}30` }}>
+                  <div style={{ width:16, height:16, borderRadius:"50%", background:kl.dot, flexShrink:0, boxShadow:`0 0 0 4px ${kl.dot}25` }} />
+                  <span style={{ fontFamily:font.body, fontWeight:800, fontSize:13, color:kl.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl.icoon} {kl.label}</span>
                 </div>
               </div>
             </div>
@@ -3117,21 +3168,35 @@ function Stap9({ bedrijf, csvData, onBack }) {
               <span style={{ fontFamily:font.display, fontWeight:700, fontSize:14, color:"#FFFFFF", textTransform:"uppercase", letterSpacing:"1.5px" }}>Wat doe je vandaag?</span>
             </div>
             <div>
-              {ownerSummary.split("\n").filter(p => p.trim()).map((p, i) => (
-                <div key={i} style={{
-                  fontFamily:font.body, fontSize:14, color:"rgba(255,255,255,.95)", lineHeight:1.8,
-                  marginBottom: i < ownerSummary.split("\n").filter(p2=>p2.trim()).length - 1 ? 10 : 0,
-                  paddingLeft: p.trim().match(/^[1-9][\.\)]|^[-•]/) ? 0 : 0,
-                  display:"flex", gap: 8, alignItems:"flex-start",
-                }}>
-                  {p.trim().match(/^[1-9][\.\)]/) && (
-                    <span style={{ background:"rgba(255,255,255,.25)", borderRadius:"50%", width:22, height:22, display:"inline-flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, flexShrink:0, marginTop:2 }}>
-                      {p.trim()[0]}
-                    </span>
-                  )}
-                  <span>{p.trim().replace(/^[1-9][\.\)]\s*/, "").replace(/^[-•]\s*/, "")}</span>
-                </div>
-              ))}
+              {(() => {
+                const sep = String.fromCharCode(10);
+                const raw = ownerSummary;
+                // Split op genummerde punten (1. / 2. / 3.) of op newlines
+                const punten = raw
+                  .replace(/([23])\.\s/g, sep + "$1. ")
+                  .split(sep)
+                  .map(p => p.trim())
+                  .filter(p => p.length > 3);
+                return punten.map((p, i) => {
+                  const numMatch = p.match(/^([1-9])[.):][ 	]*([\s\S]*)/);
+                  const num = numMatch ? numMatch[1] : null;
+                  const tekst = numMatch ? numMatch[2] : p;
+                  const iconen = ["1","2","3"].includes(num) ? ["✅","🚫","🔧"][parseInt(num)-1] : null;
+                  return (
+                    <div key={i} style={{ display:"flex", gap:12, alignItems:"flex-start", marginBottom: i < punten.length - 1 ? 14 : 0 }}>
+                      {iconen && (
+                        <span style={{ fontSize:18, flexShrink:0, marginTop:2 }}>{iconen}</span>
+                      )}
+                      <div style={{ fontFamily:font.body, fontSize:14, color:"rgba(255,255,255,.96)", lineHeight:1.75 }}>
+                        {num && <strong style={{ color:"#fff" }}>
+                          {num === "1" ? "Doe vandaag: " : num === "2" ? "Laat staan: " : "Los eerst op: "}
+                        </strong>}
+                        {tekst}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
         )}
