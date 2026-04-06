@@ -1688,6 +1688,7 @@ function Stap1({ data, setData, onNext, onHelp }) {
         onHelp={onHelp} heeftNaam={false} />
       <Input label="Bedrijfsnaam *" value={data.naam} onChange={v => setData({ ...data, naam: v })} placeholder="bv. GrowthLab BV" />
       <Input label="Website URL" value={data.url} onChange={v => setData({ ...data, url: v })} placeholder="bv. https://jouwbedrijf.be" />
+      <Input label="Gemeente / Stad" value={data.locatie} onChange={v => setData({ ...data, locatie: v })} placeholder="bv. Ronse, Gent, Antwerpen…" />
       {!data.url.trim() && data.naam.trim() && (
         <div style={{ background: "#FEF9EC", border: "1px solid #E8D080", borderRadius: 8, padding: "8px 14px", marginTop: -12, marginBottom: 16, fontFamily: font.body, fontSize: 12, color: "#8A6200", display: "flex", gap: 8 }}>
           <span>💡</span>
@@ -1930,15 +1931,30 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
     const cat = concCategorie.trim();
     try {
       addStap(setConcStappen, "Zoek concurrenten en pijnpunten in: " + cat + "…");
-      const prompt = "Geef een marktanalyse voor " + cat + " in Belgie en Nederland."
-        + " Context: we analyseren voor " + bedrijf.naam
-        + (bedrijf.aanbod ? " (" + bedrijf.aanbod.substring(0, 80) + ")" : "") + "."
-        + " 1) De 3 bekendste concurrenten (naam + 1 zin omschrijving)"
-        + " 2) Per concurrent: 3 typische klachten van klanten als ik-citaten in het Nederlands."
-        + " Schrijf als genummerde lijst. Wees specifiek.";
-      const raw = await callClaude(
-        "Je bent marktexpert met kennis van de Belgische en Nederlandse markt. Geef concrete marktinformatie.",
-        prompt, 800
+      // Detecteer locatie uit URL of bedrijfsnaam
+      const locatieHint = (() => {
+        const urlDomain = (bedrijf.url || "").toLowerCase().replace(/https?:\/\//, "").split("/")[0];
+        const gemeenteInNaam = (bedrijf.naam + " " + urlDomain).toLowerCase();
+        // Bekende Belgische steden/regio's detecteren
+        const regioDet = [
+          ["zwalm","oudenaarde","ronse","geraardsbergen","vlaamse-ardennen","east flanders","oost-vlaanderen"],
+          ["gent","ghent"],["brussel","brussels","bruxelles"],["antwerpen","antwerp"],
+          ["brugge","bruges"],["leuven"],["hasselt","limburg"],["luik","liège"],
+          ["kortrijk","roeselare","west-vlaanderen"],["mechelen"],["aalst"],["sint-niklaas"],
+        ].find(r => r.some(k => gemeenteInNaam.includes(k)));
+        if (regioDet) return regioDet[0];
+        if (urlDomain.endsWith(".be") || gemeenteInNaam.includes("belgiu") || gemeenteInNaam.includes("belgi")) return "België";
+        return "België en omgeving";
+      })();
+      const prompt = "Analyseer de lokale markt voor " + cat + " in de regio " + locatieHint + " (straal 50km rond het bedrijf)."
+        + " We analyseren voor " + bedrijf.naam + (bedrijf.url ? " (" + bedrijf.url + ")" : "")
+        + (bedrijf.aanbod ? ", actief in: " + bedrijf.aanbod.substring(0, 80) : "") + "."
+        + " STAP 1: Zoek 3 LOKALE concurrenten in dezelfde regio (binnen 50km). Als je er geen 3 vindt lokaal, zoek dan binnen België."
+        + " STAP 2: Per concurrent: naam, gemeente/regio, korte omschrijving, en 3 klachten van klanten (als ik-citaten in het Nederlands)."
+        + " Schrijf als genummerde lijst. Focus op ECHTE lokale spelers, geen nationale ketens tenzij ze lokaal actief zijn.";
+      const raw = await callSearch(
+        "Je bent marktexpert. Zoek online naar echte lokale concurrenten en hun klantreviews. Geef concrete informatie.",
+        prompt, 900
       );
       if (!raw || raw.trim().length < 30) {
         updateLast(setConcStappen, "leeg", "Geen resultaat — probeer een specifiekere categorie");
@@ -2983,47 +2999,121 @@ function Stap9({ bedrijf, csvData, onBack }) {
   const downloadPdf = () => {
     const datum = new Date().toLocaleDateString("nl-BE", { day: "2-digit", month: "2-digit", year: "numeric" });
     const blokken = parseerEvaluatie(resultaat || "");
-    const sep = String.fromCharCode(10);
-    const beslissingsHTML = (b) => {
-      const kl = b === "STOP DIRECT" ? "#cc2200" : b === "OPTIMALISEER" ? "#e08000" : b === "OPSCHALEN" ? "#1a3a8a" : "#1a6b1a";
-      const bg = b === "STOP DIRECT" ? "#fff0f0" : b === "OPTIMALISEER" ? "#fff8e0" : b === "OPSCHALEN" ? "#eef2ff" : "#efffee";
-      const icoon = b === "STOP DIRECT" ? "&#128308;" : b === "OPTIMALISEER" ? "&#128993;" : b === "OPSCHALEN" ? "&#128640;" : "&#128994;";
-      return "<div style='display:inline-flex;align-items:center;gap:8px;background:" + bg + ";border:1.5px solid " + kl + ";border-radius:8px;padding:5px 14px;margin-bottom:10px;'><span>" + icoon + "</span><span style='font-weight:700;font-size:12px;color:" + kl + ";letter-spacing:1px;text-transform:uppercase'>" + b + "</span></div>";
-    };
-    const ownerHtml = blokken.ownerSummary
-      ? "<div style='background:#2C6E49;border-radius:10px;padding:16px 20px;margin-bottom:24px;'><div style='font-size:12px;font-weight:700;color:rgba(255,255,255,.8);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;'>Wat doe je vandaag?</div><div style='font-size:14px;color:#fff;line-height:1.8;'>" + blokken.ownerSummary + "</div></div>"
-      : "";
-    let campagneHTML = "";
-    for (const blok of blokken.campagnes) {
-      const prioBadge = blok.prioriteit === 1
-        ? "<span style='background:#2C6E49;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:4px;letter-spacing:1px;margin-right:8px;'>EERST</span>"
-        : blok.prioriteit === 3
-        ? "<span style='background:#F0EDE7;color:#7A8A7E;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:1px;margin-right:8px;'>MAG WACHTEN</span>"
-        : "";
-      const vertrouwenBadge = blok.vertrouwen
-        ? "<span style='font-size:10px;font-weight:700;padding:2px 9px;border-radius:4px;margin-left:8px;background:" + (blok.vertrouwen==="STERK"?"#E8F5EE":blok.vertrouwen==="MATIG"?"#FEF9EC":"#FEF0F0") + ";color:" + (blok.vertrouwen==="STERK"?"#2C6E49":blok.vertrouwen==="MATIG"?"#8A6200":"#B03A2E") + ";'>" + (blok.vertrouwen==="STERK"?"✓ Betrouwbaar":blok.vertrouwen==="MATIG"?"~ Indicatief":"⚠ Weinig data") + "</span>"
-        : "";
-      campagneHTML += "<div style='border:1.5px solid #D4D0C4;border-radius:12px;padding:18px 22px;margin-bottom:16px;page-break-inside:avoid;'>"
-        + "<div style='font-size:14px;font-weight:700;color:#1E2A23;margin-bottom:10px;border-bottom:1px solid #eee;padding-bottom:8px;display:flex;align-items:center;'>" + prioBadge + (blok.naam || "Campagne") + vertrouwenBadge + "</div>"
-        + beslissingsHTML(blok.beslissing)
-        + (blok.reden ? "<div style='font-size:13px;color:#444;margin-bottom:8px;line-height:1.6'><strong>Reden:</strong> " + blok.reden + "</div>" : "")
-        + (blok.actie ? "<div style='font-size:13px;color:#1C2333;background:#F0EFE9;border-radius:6px;padding:8px 12px;'><strong>Actie:</strong> " + blok.actie + "</div>" : "")
-        + "</div>";
-    }
-    const sectieHTML = (titel, inhoud, kleur) => inhoud
-      ? "<div style='margin-top:24px;'><div style='font-weight:700;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:" + kleur + ";margin-bottom:10px;'>" + titel + "</div><div style='font-size:13px;color:#333;line-height:1.7;white-space:pre-wrap;'>" + inhoud + "</div></div>"
-      : "";
+
+    // Build campagne cards HTML
+    const beslissingsKleur = (b) => b==="STOP DIRECT"?"#CC2200":b==="OPTIMALISEER"?"#E08000":b==="OPSCHALEN"?"#1a3a8a":"#1a6b1a";
+    const beslissingsBg = (b) => b==="STOP DIRECT"?"#FFF0F0":b==="OPTIMALISEER"?"#FFF8E0":b==="OPSCHALEN"?"#EEF2FF":"#F0FFF0";
+    const beslissingsIcoon = (b) => b==="STOP DIRECT"?"🔴":b==="OPTIMALISEER"?"🟡":b==="OPSCHALEN"?"🚀":"🟢";
+
+    const ownerHtml = blokken.ownerSummary ? `
+      <div style="background:#1A4A30;border-radius:12px;margin-bottom:28px;overflow:hidden;">
+        <div style="background:#2C6E49;padding:12px 20px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:18px;">🎯</span>
+          <span style="font-weight:700;font-size:13px;color:#fff;text-transform:uppercase;letter-spacing:2px;">Wat doe je vandaag?</span>
+        </div>
+        <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;">
+          ${blokken.ownerSummary.replace(/([23])[.)]\s/g, String.fromCharCode(10)+"$1. ").split(String.fromCharCode(10)).map(p=>p.trim()).filter(p=>p.length>5).map((p,i)=>{
+            const m=p.match(/^([1-9])[.):]?\s*([\s\S]*)/);
+            const n=m?m[1]:String(i+1); const t=m?m[2]:p;
+            const cfg=[{n:"1",ic:"✅",lb:"Doe vandaag",kl:"#4ADE80"},{n:"2",ic:"🚫",lb:"Laat staan",kl:"#FCA5A5"},{n:"3",ic:"🔧",lb:"Los eerst op",kl:"#FCD34D"}].find(c=>c.n===n)||{ic:"·",lb:"",kl:"rgba(255,255,255,.6)"};
+            return `<div style="display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,.08);border-radius:8px;padding:10px 14px;border-left:3px solid ${cfg.kl};">
+              <span style="font-size:18px;flex-shrink:0;">${cfg.ic}</span>
+              <div><div style="font-weight:700;font-size:10px;color:${cfg.kl};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px;">${cfg.lb}</div>
+              <div style="font-size:13px;color:rgba(255,255,255,.9);line-height:1.7;">${t}</div></div></div>`;
+          }).join("")}
+        </div>
+      </div>` : "";
+
+    const campagnesHtml = blokken.campagnes.map(blok => {
+      const kl = beslissingsKleur(blok.beslissing);
+      const bg = beslissingsBg(blok.beslissing);
+      const ic = beslissingsIcoon(blok.beslissing);
+      const prioBadge = blok.prioriteit===1 ? `<span style="background:#2C6E49;color:#fff;font-size:9px;font-weight:800;padding:2px 7px;border-radius:3px;letter-spacing:1px;margin-right:6px;">EERST</span>` : "";
+      const vertrBadge = blok.vertrouwen ? `<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;background:${blok.vertrouwen==="STERK"?"#E8F5EE":blok.vertrouwen==="MATIG"?"#FEF9EC":"#FEF0F0"};color:${blok.vertrouwen==="STERK"?"#2C6E49":blok.vertrouwen==="MATIG"?"#8A6200":"#B03A2E"};">${blok.vertrouwen==="STERK"?"✓ Betrouwbaar":blok.vertrouwen==="MATIG"?"~ Indicatief":"⚠ Weinig data"}</span>` : "";
+      return `<div style="border:1.5px solid ${kl}44;border-left:4px solid ${kl};border-radius:10px;margin-bottom:16px;overflow:hidden;page-break-inside:avoid;">
+        <div style="background:${bg};padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">${prioBadge}<strong style="font-size:14px;color:#1E2A23;">${blok.naam||"Campagne"}</strong></div>
+          <div style="display:flex;align-items:center;gap:8px;">${vertrBadge}<span style="display:flex;align-items:center;gap:6px;background:white;border:1.5px solid ${kl};border-radius:16px;padding:4px 12px;font-weight:800;font-size:11px;color:${kl};">${ic} ${blok.beslissing}</span></div>
+        </div>
+        <div style="padding:14px 18px;background:white;">
+          ${blok.reden?`<div style="font-size:13px;color:#3D4E44;margin-bottom:8px;line-height:1.6;"><strong style="color:#1E2A23;">Reden:</strong> ${blok.reden}</div>`:""}
+          ${blok.actie?`<div style="display:flex;gap:8px;align-items:flex-start;background:#EBF5EF;border-radius:7px;padding:8px 12px;"><span style="font-weight:700;color:#2C6E49;flex-shrink:0;">→ Actie:</span><span style="font-size:13px;color:#1D4D33;line-height:1.6;">${blok.actie}</span></div>`:""}
+        </div>
+      </div>`;
+    }).join("");
+
+    const sectionHtml = (icoon, titel, inhoud, kleur, bg) => inhoud ? `
+      <div style="margin-top:24px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="font-size:16px;">${icoon}</span>
+          <span style="font-weight:700;font-size:11px;color:${kleur};text-transform:uppercase;letter-spacing:1.5px;">${titel}</span>
+          <div style="flex:1;height:1px;background:${kleur}33;"></div>
+        </div>
+        <div style="background:${bg};border-radius:9px;padding:12px 16px;font-size:13px;color:#3D4E44;line-height:1.8;white-space:pre-wrap;">${inhoud}</div>
+      </div>` : "";
+
     const win = window.open("", "_blank");
-    win.document.write("<!DOCTYPE html><html lang='nl'><head><meta charset='UTF-8'/><title>Campagne Evaluatie - " + bedrijf.naam + "</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;color:#1C2333;background:#fff;padding:40px;max-width:820px;margin:0 auto}@media print{body{padding:20px}}</style></head><body>"
-      + "<div style='border-bottom:3px solid #D4A847;padding-bottom:20px;margin-bottom:28px;'><div style='font-size:24px;font-weight:700;color:#1C2333;margin-bottom:4px;'>Campagne Evaluatie</div><div style='font-size:13px;color:#8A95A8;'>" + bedrijf.naam + (bedrijf.aanbod ? " - " + bedrijf.aanbod.substring(0,60) : "") + " - " + datum + "</div></div>"
-      + ownerHtml
-      + "<div style='font-weight:700;font-size:12px;color:#8A95A8;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;'>Evaluatie per campagne — op prioriteit</div>"
-      + campagneHTML
-      + sectieHTML("Budget Guardian", blokken.guardian, "#b05000")
-      + sectieHTML("Creatieve Fatigue", blokken.fatigue, "#9A7820")
-      + sectieHTML("Dagelijkse Samenvatting", blokken.samenvatting, "#1C2333")
-      + "<div style='margin-top:36px;padding-top:14px;border-top:1px solid #D4D0C4;font-size:10px;color:#aaa;display:flex;justify-content:space-between;'><span>Meta Ads Co-pilot - Verdify - verdify.eu</span><span>" + datum + "</span></div>"
-      + "<script>setTimeout(function(){window.print();},400);<" + "/script></body></html>");
+    win.document.write(`<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"/>
+<title>Campagne Evaluatie — ${bedrijf.naam}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;color:#1E2A23;background:#F8F7F4;padding:0;max-width:860px;margin:0 auto;}
+@media print{body{background:#fff;max-width:100%;}.no-print{display:none}@page{margin:1.5cm}}
+</style></head><body>
+
+<!-- HEADER -->
+<div style="background:#2C6E49;padding:18px 32px;display:flex;align-items:center;justify-content:space-between;">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;font-weight:800;border:1.5px solid rgba(255,255,255,.3);">✦</div>
+    <div>
+      <div style="font-weight:700;font-size:18px;color:#FFFFFF;letter-spacing:.5px;">Meta Ads Co-pilot</div>
+      <div style="font-size:10px;color:rgba(255,255,255,.75);font-weight:600;letter-spacing:2.5px;text-transform:uppercase;">Campagne Evaluatie Rapport</div>
+    </div>
+  </div>
+  <div style="text-align:right;color:rgba(255,255,255,.85);font-size:12px;">
+    <div style="font-weight:600;">${bedrijf.naam}</div>
+    <div>${datum}</div>
+  </div>
+</div>
+
+<!-- META INFO -->
+<div style="background:#EBF5EF;border-bottom:2px solid #2C6E49;padding:12px 32px;display:flex;gap:24px;flex-wrap:wrap;">
+  ${bedrijf.aanbod?`<span style="font-size:12px;color:#1D4D33;"><strong>Aanbod:</strong> ${bedrijf.aanbod.substring(0,80)}${bedrijf.aanbod.length>80?"…":""}</span>`:""}
+  ${playbook?`<span style="font-size:12px;color:#1D4D33;"><strong>Sector:</strong> ${playbook.label}</span><span style="font-size:12px;color:#1D4D33;"><strong>Typische CPL:</strong> ${playbook.typisch_cpl}</span>`:""}
+</div>
+
+<!-- CONTENT -->
+<div style="padding:28px 32px;background:#fff;min-height:600px;">
+
+  ${ownerHtml}
+
+  <div style="font-weight:700;font-size:11px;color:#7A8A7E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+    <span>Evaluatie per campagne</span>
+    <span style="background:#EBF5EF;color:#2C6E49;font-size:10px;padding:2px 8px;border-radius:4px;">${blokken.campagnes.length} campagnes</span>
+  </div>
+  ${campagnesHtml}
+  ${sectionHtml("🛡️","Budget Guardian",blokken.guardian,"#8A4A00","#FFF8F0")}
+  ${sectionHtml("⚡","Creatieve Fatigue",blokken.fatigue,"#8A6200","#FFFBEC")}
+  ${sectionHtml("📋","Samenvatting",blokken.samenvatting,"#1E2A23","#F0EDE7")}
+</div>
+
+<!-- FOOTER -->
+<div style="background:#F0EDE7;border-top:1px solid #DDD8CF;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <img src="${VERDIFY_LOGO}" alt="Verdify" style="height:40px;width:auto;object-fit:contain;" />
+    <div>
+      <div style="font-weight:700;font-size:14px;color:#2C6E49;">Meta Ads Co-pilot</div>
+      <div style="font-size:11px;color:#7A8A7E;">Powered by Verdify · verdify.eu</div>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#7A8A7E;text-align:right;">
+    <div>Gegenereerd op ${datum}</div>
+    <div style="margin-top:2px;">Vertrouwelijk rapport</div>
+  </div>
+</div>
+
+<script>setTimeout(()=>window.print(),500);<\/script>
+</body></html>`);
     win.document.close();
   };
 
@@ -3165,29 +3255,30 @@ function Stap9({ bedrijf, csvData, onBack }) {
             </div>
             <div>
               {(() => {
-                const sep = String.fromCharCode(10);
+                const nl = String.fromCharCode(10);
                 const raw = ownerSummary;
-                // Split op genummerde punten (1. / 2. / 3.) of op newlines
+                // Split op genummerde punten: "1. xxx 2. xxx 3. xxx" of newlines
                 const punten = raw
-                  .replace(/([23])\.\s/g, sep + "$1. ")
-                  .split(sep)
+                  .replace(/\s+([23])\.\s/g, nl + "$1. ")
+                  .split(nl)
                   .map(p => p.trim())
-                  .filter(p => p.length > 3);
+                  .filter(p => p.length > 4);
+                const config = [
+                  { num:"1", icoon:"✅", label:"Doe vandaag", kleur:"rgba(255,255,255,.95)" },
+                  { num:"2", icoon:"🚫", label:"Laat staan", kleur:"rgba(255,255,255,.85)" },
+                  { num:"3", icoon:"🔧", label:"Los eerst op", kleur:"rgba(255,255,255,.85)" },
+                ];
                 return punten.map((p, i) => {
-                  const numMatch = p.match(/^([1-9])[.):][ 	]*([\s\S]*)/);
-                  const num = numMatch ? numMatch[1] : null;
-                  const tekst = numMatch ? numMatch[2] : p;
-                  const iconen = ["1","2","3"].includes(num) ? ["✅","🚫","🔧"][parseInt(num)-1] : null;
+                  const numMatch = p.match(/^([1-9])[.):\s]/);
+                  const num = numMatch ? numMatch[1] : String(i + 1);
+                  const tekst = p.replace(/^[1-9][.):\s]+/, "").trim();
+                  const cfg = config.find(c => c.num === num) || config[i] || config[2];
                   return (
-                    <div key={i} style={{ display:"flex", gap:12, alignItems:"flex-start", marginBottom: i < punten.length - 1 ? 14 : 0 }}>
-                      {iconen && (
-                        <span style={{ fontSize:18, flexShrink:0, marginTop:2 }}>{iconen}</span>
-                      )}
-                      <div style={{ fontFamily:font.body, fontSize:14, color:"rgba(255,255,255,.96)", lineHeight:1.75 }}>
-                        {num && <strong style={{ color:"#fff" }}>
-                          {num === "1" ? "Doe vandaag: " : num === "2" ? "Laat staan: " : "Los eerst op: "}
-                        </strong>}
-                        {tekst}
+                    <div key={i} style={{ display:"flex", gap:14, alignItems:"flex-start", marginBottom: i < punten.length - 1 ? 16 : 0, background:"rgba(255,255,255,.12)", borderRadius:10, padding:"12px 16px" }}>
+                      <span style={{ fontSize:22, flexShrink:0, lineHeight:1 }}>{cfg.icoon}</span>
+                      <div>
+                        <div style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:"rgba(255,255,255,.7)", textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:4 }}>{cfg.label}</div>
+                        <div style={{ fontFamily:font.body, fontSize:14, color:cfg.kleur, lineHeight:1.75 }}>{tekst}</div>
                       </div>
                     </div>
                   );
@@ -3479,7 +3570,7 @@ function Stap9({ bedrijf, csvData, onBack }) {
 
 export default function App() {
   const [stap, setStap] = useState(1);
-  const [bedrijf, setBedrijf] = useState({ naam: "", url: "", aanbod: "" });
+  const [bedrijf, setBedrijf] = useState({ naam: "", url: "", aanbod: "", locatie: "" });
   const [segmenten, setSegmenten] = useState(FALLBACK_SEGMENTEN);
   const [pijnpunten, setPijnpunten] = useState(FALLBACK_PIJNPUNTEN);
   const [gekozenPijnpunten, setGekozenPijnpunten] = useState([]);
