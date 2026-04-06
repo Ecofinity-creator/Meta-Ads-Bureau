@@ -139,7 +139,7 @@ const FALLBACK_PIJNPUNTEN = [
   "Ik wil schalen maar weet niet hoe zonder alles zelf te doen",
 ];
 
-const STAP_NAMEN = ["Bedrijfsinfo", "Doelgroep", "Segmenten & Reviews", "Pijnpunten", "Matrix", "Campagne", "Advertenties", "Meta Setup", "Campagne Evaluatie"];
+const STAP_NAMEN = ["Bedrijfsprofiel", "Doelgroep", "Segmenten & Inzichten", "Pijnpunten", "Strategie-matrix", "Campagne-insteek", "Advertenties", "Meta Setup", "Campagne Evaluatie"];
 
 // ─── STATISCHE HELP-INHOUD PER STAP ─────────────────────────────────────────
 
@@ -1445,6 +1445,31 @@ function AanbodSuggester({ naam, url, onInsert }) {
   );
 }
 
+// ─── SECTOR BALK ─────────────────────────────────────────────────────────────
+function SectorBalk({ aanbod }) {
+  const sector = detecteerSector(aanbod);
+  const playbook = sector ? SECTOR_PLAYBOOKS[sector] : null;
+  if (!playbook) return null;
+  return (
+    <div style={{ background: C.groenLight, border: `1px solid ${C.borderGreen}`, borderRadius: 10, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+      <span style={{ fontSize: 14 }}>📊</span>
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <span style={{ fontFamily: font.body, fontWeight: 700, fontSize: 11, color: C.groen, textTransform: "uppercase", letterSpacing: "1px" }}>Sector: {playbook.label}</span>
+        <div style={{ fontFamily: font.body, fontSize: 12, color: C.textSoft, marginTop: 2 }}>
+          Typische CPL: <strong>{playbook.typisch_cpl}</strong> · CTR: <strong>{playbook.typisch_ctr}</strong>
+          {playbook.hooks && <span> · Sterkste hooks: {playbook.hooks.slice(0,2).join(", ")}</span>}
+        </div>
+      </div>
+      {playbook.waarschuwingen && playbook.waarschuwingen[0] && (
+        <div style={{ fontFamily: font.body, fontSize: 11, color: "#8A6200", background: "#FEF9EC", border: "1px solid #E8D080", borderRadius: 6, padding: "4px 10px", maxWidth: 280 }}>
+          ⚠ {playbook.waarschuwingen[0]}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function Stap1({ data, setData, onNext, onHelp }) {
   const insertUsps = (blok) => {
     const huidig = data.aanbod.trim();
@@ -1458,7 +1483,7 @@ function Stap1({ data, setData, onNext, onHelp }) {
   return (
     <Card>
       <StepTitle emoji="🏢" title="Vertel ons over je bedrijf"
-        sub="We gebruiken deze info doorheen de volledige campagne-opbouw."
+        sub="Je co-pilot gebruikt deze info als basis voor elke volgende stap."
         onHelp={onHelp} heeftNaam={false} />
       <Input label="Bedrijfsnaam *" value={data.naam} onChange={v => setData({ ...data, naam: v })} placeholder="bv. GrowthLab BV" />
       <Input label="Website URL" value={data.url} onChange={v => setData({ ...data, url: v })} placeholder="bv. https://growthlab.be" />
@@ -1523,7 +1548,7 @@ function Stap2({ bedrijf, onCsvData, onNext, onHelp }) {
   return (
     <Card>
       <StepTitle emoji="🎯" title="Doelgroepanalyse"
-        sub="Upload klantdata (CSV) of beschrijf je doelgroep handmatig."
+        sub="Beschrijf je doelgroep. Je co-pilot bouwt er micro-segmenten uit."
         onHelp={onHelp} heeftNaam={!!bedrijf.naam} />
       <div style={{ marginBottom: 24 }}>
         <input type="file" accept=".csv,.txt" ref={fileRef} onChange={handleFile} style={{ display: "none" }} />
@@ -1532,7 +1557,7 @@ function Stap2({ bedrijf, onCsvData, onNext, onHelp }) {
       </div>
       <Textarea label="Of beschrijf je doelgroep handmatig" value={handmatig} onChange={setHandmatig}
         placeholder="bv. Zaakvoerders van KMO's in Vlaanderen, 35-55 jaar…" rows={5} />
-      {loading ? <Loader text="Doelgroep analyseren" stappen={analyseStappen} /> : <Btn onClick={analyseer}>Analyseer doelgroep →</Btn>}
+      {loading ? <Loader text="Doelgroep analyseren" stappen={analyseStappen} /> : <Btn onClick={analyseer}>Co-pilot: bouw segmenten →</Btn>}
     </Card>
   );
 }
@@ -1779,8 +1804,9 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
   return (
     <Card>
       <StepTitle emoji="👥" title="Jouw 4 micro-segmenten"
-        sub="AI heeft deze segmenten gegenereerd. Voeg reviews toe en analyseer pijnpunten."
+        sub="Je co-pilot heeft 4 micro-segmenten gebouwd. Voeg reviews toe voor diepere pijnpuntenanalyse."
         onHelp={onHelp} heeftNaam={!!bedrijf.naam} />
+      <SectorBalk aanbod={bedrijf.aanbod} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24 }}>
         {segmenten.map(s => <SegmentKaart key={s.id} seg={s} />)}
@@ -1898,7 +1924,7 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
       )}
       {loading
         ? <Loader text="Pijnpunten analyseren" stappen={pijnStappen} />
-        : <Btn onClick={analyseer}>Analyseer pijnpunten →</Btn>
+        : <Btn onClick={analyseer}>Co-pilot: analyseer pijnpunten →</Btn>
       }
     </Card>
   );
@@ -1914,7 +1940,7 @@ function Stap4({ pijnpunten, gekozen, setGekozen, onNext, bedrijf, onHelp }) {
   return (
     <Card>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
-        <StepTitle emoji="🎯" title="Selecteer pijnpunten" sub="Kies maximaal 6 pijnpunten voor je campagne." onHelp={onHelp} heeftNaam={!!bedrijf?.naam} />
+        <StepTitle emoji="🎯" title="Selecteer pijnpunten" sub="Kies de 6 pijnpunten die het sterkst resoneren met jouw doelgroep." onHelp={onHelp} heeftNaam={!!bedrijf?.naam} />
         <div style={{ background: C.goudLight, border: `1.5px solid ${C.borderGold}`, borderRadius: 10, padding: "10px 20px", fontFamily: font.body, fontWeight: 700, fontSize: 15, color: C.goud, whiteSpace: "nowrap" }}>
           {gekozen.length} / 6
         </div>
@@ -1955,7 +1981,7 @@ function Stap5({ segmenten, pijnpunten, gekozenPijnpunten, combinaties, setCombi
   return (
     <Card>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
-        <StepTitle emoji="🔢" title="Segment × Pijnpunt matrix" sub="Selecteer maximaal 6 combinaties voor je campagne." onHelp={onHelp} heeftNaam={!!bedrijf?.naam} />
+        <StepTitle emoji="🔢" title="Segment × Pijnpunt matrix" sub="Je co-pilot combineert segmenten en pijnpunten. Kies de 6 sterkste combinaties." onHelp={onHelp} heeftNaam={!!bedrijf?.naam} />
         <div style={{ background: C.goudLight, border: `1.5px solid ${C.borderGold}`, borderRadius: 10, padding: "10px 20px", fontFamily: font.body, fontWeight: 700, fontSize: 15, color: C.goud }}>
           {combinaties.length} / 6
         </div>
@@ -2093,7 +2119,8 @@ function Stap6({ bedrijf, combinaties, segmenten, pijnpunten, onNext, onBack, on
 
   return (
     <Card>
-      <StepTitle emoji="🚀" title="Kies je campagne-insteek" sub="Welke formule past het best bij jouw doelgroep en aanbod?" onHelp={onHelp} heeftNaam={!!bedrijf.naam} />
+      <StepTitle emoji="🚀" title="Kies je campagne-insteek" sub="Je co-pilot stelt de beste campagneformules voor op basis van jouw profiel." onHelp={onHelp} heeftNaam={!!bedrijf.naam} />
+      <SectorBalk aanbod={bedrijf.aanbod} />
       {loading && (
         <div style={{ marginBottom: 24 }}>
           <Loader text={"AI-suggesties genereren voor " + bedrijf.naam} stappen={[
@@ -2169,7 +2196,7 @@ function CombinatieTeksten({ bedrijf, seg, pijnpunt, campagne }) {
         + ". Pijnpunt: " + pijnpunt;
 
       // Call 1: 5 advertentieteksten (Emotioneel, Rationeel, Direct probleem, Urgentie, Droom)
-      const prompt1 = context + ". Schrijf 5 Meta Ads advertentieteksten (1 per hook-type: Emotioneel, Rationeel, Direct probleem, Urgentie, Droom). Elke tekst: hook + oplossing + CTA. Geef output als JSON object met veld teksten (array van objecten met hook_type en tekst).";
+      const prompt1 = context + ". Schrijf 5 Meta Ads advertentieteksten (1 per hook-type: Emotioneel, Rationeel, Direct probleem, Urgentie, Droom). Elke tekst: hook + oplossing + CTA. Voeg per tekst ook een veld 'waarom' toe: 1 zin waarom deze hook werkt voor dit segment en pijnpunt. Geef output als JSON object met veld teksten (array van objecten met hook_type, tekst en waarom).";
       const raw1 = await callClaude(sysprompt, prompt1, 1200);
       const parsed1 = parseJsonSafe(raw1, { teksten: [] });
 
@@ -2245,7 +2272,15 @@ JSON: {"fotos":[{"concept":"...","prompt":"Engelse prompt","waarom":"..."}],"vid
                   <span style={{ display: "inline-block", background: `linear-gradient(135deg, ${C.goud}, ${C.goudBright})`, color: "#1a1614", fontSize: 10, fontWeight: 800, padding: "4px 12px", borderRadius: 6, marginBottom: 12, fontFamily: font.body, letterSpacing: "1px", textTransform: "uppercase" }}>
                     {t.hook_type ?? ""}
                   </span>
-                  <p style={{ fontFamily: font.body, fontSize: 14, lineHeight: 1.75, margin: 0, whiteSpace: "pre-wrap", color: C.textSoft }}>{(t.tekst ?? "").replace(/\\n/g, "\n")}</p>
+                  <p style={{ fontFamily: font.body, fontSize: 14, lineHeight: 1.75, margin: "0 0 12px 0", whiteSpace: "pre-wrap", color: C.textSoft }}>{(t.tekst ?? "").replace(/\\n/g, "\n")}</p>
+                  {t.waarom && (
+                    <div style={{ display:"flex", alignItems:"flex-start", gap:8, background:C.groenLight, border:`1px solid ${C.borderGreen}`, borderRadius:8, padding:"8px 12px" }}>
+                      <span style={{ fontSize:13, flexShrink:0 }}>💡</span>
+                      <span style={{ fontFamily:font.body, fontSize:12, color:C.groenDim, lineHeight:1.6, fontStyle:"italic" }}>
+                        <strong style={{ fontStyle:"normal", color:C.groen }}>Waarom dit werkt:</strong> {t.waarom}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -2705,7 +2740,7 @@ function Stap9({ bedrijf, csvData, onBack }) {
         + (bedrijf.aanbod ? " Aanbod: " + bedrijf.aanbod.substring(0, 100) + "." : "")
         + sectorCtx
         + " Data: " + data.substring(0, 2500)
-        + " Geef voor elke campagne/advertentie dit formaat: ---CAMPAGNE: [naam] BESLISSING: [STOP DIRECT of OPTIMALISEER of BLIJVEN LOPEN of OPSCHALEN] REDEN: [1 zin] ACTIE: [1 concrete stap] --- Sluit af met ===BUDGET GUARDIAN [max 3 punten] ===CREATIEVE FATIGUE [max 3 punten] ===DAGELIJKSE SAMENVATTING [1 alinea]. Nederlands, geen jargon.";
+        + " Geef eerst een OWNER SUMMARY: 3 zinnen wat de ondernemer VANDAAG doet, niet doet, en eerst oplost. Dan voor elke campagne/advertentie: ---CAMPAGNE: [naam] BESLISSING: [STOP DIRECT of OPTIMALISEER of BLIJVEN LOPEN of OPSCHALEN] PRIORITEIT: [1=eerste, 2=daarna, 3=mag wachten] VERTROUWEN: [LAAG - te weinig data of MATIG - indicatief of STERK - betrouwbaar] REDEN: [1 zin] ACTIE: [1 concrete stap] --- Sluit af met ===BUDGET GUARDIAN [max 3 punten] ===CREATIEVE FATIGUE [signalen + nieuwe hook suggestie] ===DAGELIJKSE SAMENVATTING [zelfde als OWNER SUMMARY maar uitgebreider]. Nederlands, geen jargon.";
 
       const raw = await callClaude(
         "Je bent een eerlijke Meta Ads coach voor kleine ondernemers. Geef scherpe, bruikbare adviezen.",
@@ -2728,10 +2763,21 @@ function Stap9({ bedrijf, csvData, onBack }) {
       const icoon = b === "STOP DIRECT" ? "&#128308;" : b === "OPTIMALISEER" ? "&#128993;" : b === "OPSCHALEN" ? "&#128640;" : "&#128994;";
       return "<div style='display:inline-flex;align-items:center;gap:8px;background:" + bg + ";border:1.5px solid " + kl + ";border-radius:8px;padding:5px 14px;margin-bottom:10px;'><span>" + icoon + "</span><span style='font-weight:700;font-size:12px;color:" + kl + ";letter-spacing:1px;text-transform:uppercase'>" + b + "</span></div>";
     };
+    const ownerHtml = blokken.ownerSummary
+      ? "<div style='background:#2C6E49;border-radius:10px;padding:16px 20px;margin-bottom:24px;'><div style='font-size:12px;font-weight:700;color:rgba(255,255,255,.8);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;'>Wat doe je vandaag?</div><div style='font-size:14px;color:#fff;line-height:1.8;'>" + blokken.ownerSummary + "</div></div>"
+      : "";
     let campagneHTML = "";
     for (const blok of blokken.campagnes) {
+      const prioBadge = blok.prioriteit === 1
+        ? "<span style='background:#2C6E49;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:4px;letter-spacing:1px;margin-right:8px;'>EERST</span>"
+        : blok.prioriteit === 3
+        ? "<span style='background:#F0EDE7;color:#7A8A7E;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:1px;margin-right:8px;'>MAG WACHTEN</span>"
+        : "";
+      const vertrouwenBadge = blok.vertrouwen
+        ? "<span style='font-size:10px;font-weight:700;padding:2px 9px;border-radius:4px;margin-left:8px;background:" + (blok.vertrouwen==="STERK"?"#E8F5EE":blok.vertrouwen==="MATIG"?"#FEF9EC":"#FEF0F0") + ";color:" + (blok.vertrouwen==="STERK"?"#2C6E49":blok.vertrouwen==="MATIG"?"#8A6200":"#B03A2E") + ";'>" + (blok.vertrouwen==="STERK"?"✓ Betrouwbaar":blok.vertrouwen==="MATIG"?"~ Indicatief":"⚠ Weinig data") + "</span>"
+        : "";
       campagneHTML += "<div style='border:1.5px solid #D4D0C4;border-radius:12px;padding:18px 22px;margin-bottom:16px;page-break-inside:avoid;'>"
-        + "<div style='font-size:15px;font-weight:700;color:#1C2333;margin-bottom:10px;border-bottom:1px solid #eee;padding-bottom:8px;'>" + (blok.naam || "Campagne") + "</div>"
+        + "<div style='font-size:14px;font-weight:700;color:#1E2A23;margin-bottom:10px;border-bottom:1px solid #eee;padding-bottom:8px;display:flex;align-items:center;'>" + prioBadge + (blok.naam || "Campagne") + vertrouwenBadge + "</div>"
         + beslissingsHTML(blok.beslissing)
         + (blok.reden ? "<div style='font-size:13px;color:#444;margin-bottom:8px;line-height:1.6'><strong>Reden:</strong> " + blok.reden + "</div>" : "")
         + (blok.actie ? "<div style='font-size:13px;color:#1C2333;background:#F0EFE9;border-radius:6px;padding:8px 12px;'><strong>Actie:</strong> " + blok.actie + "</div>" : "")
@@ -2743,12 +2789,13 @@ function Stap9({ bedrijf, csvData, onBack }) {
     const win = window.open("", "_blank");
     win.document.write("<!DOCTYPE html><html lang='nl'><head><meta charset='UTF-8'/><title>Campagne Evaluatie - " + bedrijf.naam + "</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;color:#1C2333;background:#fff;padding:40px;max-width:820px;margin:0 auto}@media print{body{padding:20px}}</style></head><body>"
       + "<div style='border-bottom:3px solid #D4A847;padding-bottom:20px;margin-bottom:28px;'><div style='font-size:24px;font-weight:700;color:#1C2333;margin-bottom:4px;'>Campagne Evaluatie</div><div style='font-size:13px;color:#8A95A8;'>" + bedrijf.naam + (bedrijf.aanbod ? " - " + bedrijf.aanbod.substring(0,60) : "") + " - " + datum + "</div></div>"
-      + "<div style='font-weight:700;font-size:12px;color:#8A95A8;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;'>Evaluatie per campagne</div>"
+      + ownerHtml
+      + "<div style='font-weight:700;font-size:12px;color:#8A95A8;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;'>Evaluatie per campagne — op prioriteit</div>"
       + campagneHTML
       + sectieHTML("Budget Guardian", blokken.guardian, "#b05000")
       + sectieHTML("Creatieve Fatigue", blokken.fatigue, "#9A7820")
       + sectieHTML("Dagelijkse Samenvatting", blokken.samenvatting, "#1C2333")
-      + "<div style='margin-top:36px;padding-top:14px;border-top:1px solid #D4D0C4;font-size:10px;color:#aaa;display:flex;justify-content:space-between;'><span>Meta Ads Bureau - Verdify - verdify.eu</span><span>" + datum + "</span></div>"
+      + "<div style='margin-top:36px;padding-top:14px;border-top:1px solid #D4D0C4;font-size:10px;color:#aaa;display:flex;justify-content:space-between;'><span>Meta Ads Co-pilot - Verdify - verdify.eu</span><span>" + datum + "</span></div>"
       + "<script>setTimeout(function(){window.print();},400);<" + "/script></body></html>");
     win.document.close();
   };
@@ -2760,7 +2807,7 @@ function Stap9({ bedrijf, csvData, onBack }) {
     const regels = tekst.split(sep);
     const campagnes = [];
     let huidig = null;
-    let guardian = "", fatigue = "", samenvatting = "";
+    let guardian = "", fatigue = "", samenvatting = "", ownerSummary = "";
     let sectie = null;
     let sectieBuffer = [];
     const flushSectie = () => {
@@ -2768,6 +2815,7 @@ function Stap9({ bedrijf, csvData, onBack }) {
       if (sectie === "guardian") guardian = inhoud;
       else if (sectie === "fatigue") fatigue = inhoud;
       else if (sectie === "samenvatting") samenvatting = inhoud;
+      else if (sectie === "owner") ownerSummary = inhoud;
       sectieBuffer = [];
     };
     for (const regel of regels) {
@@ -2777,9 +2825,11 @@ function Stap9({ bedrijf, csvData, onBack }) {
       if (r.startsWith("---CAMPAGNE:") || r.startsWith("--- CAMPAGNE:")) {
         if (huidig) campagnes.push(huidig);
         flushSectie(); sectie = null;
-        huidig = { naam: r.replace(/---\s*CAMPAGNE:\s*/i, "").trim(), beslissing: "", reden: "", actie: "" };
+        huidig = { naam: r.replace(/---\s*CAMPAGNE:\s*/i, "").trim(), beslissing: "", prioriteit: 2, vertrouwen: "", reden: "", actie: "" };
       } else if (r.trim() === "---") {
         if (huidig) { campagnes.push(huidig); huidig = null; }
+      } else if (up.includes("OWNER SUMMARY") && !huidig) {
+        flushSectie(); sectie = "owner";
       } else if (up.includes("===BUDGET GUARDIAN") || (up.startsWith("BUDGET GUARDIAN") && !huidig)) {
         if (huidig) { campagnes.push(huidig); huidig = null; }
         flushSectie(); sectie = "guardian";
@@ -2791,6 +2841,12 @@ function Stap9({ bedrijf, csvData, onBack }) {
         if (r.startsWith("BESLISSING:")) {
           const b = r.replace("BESLISSING:", "").trim().toUpperCase();
           huidig.beslissing = b.includes("STOP") ? "STOP DIRECT" : b.includes("OPTIMALISEER") ? "OPTIMALISEER" : b.includes("OPSCHALEN") ? "OPSCHALEN" : "BLIJVEN LOPEN";
+        } else if (r.startsWith("PRIORITEIT:")) {
+          const p = r.replace("PRIORITEIT:", "").trim();
+          huidig.prioriteit = p.startsWith("1") ? 1 : p.startsWith("3") ? 3 : 2;
+        } else if (r.startsWith("VERTROUWEN:")) {
+          const v = r.replace("VERTROUWEN:", "").trim().toUpperCase();
+          huidig.vertrouwen = v.includes("STERK") ? "STERK" : v.includes("MATIG") ? "MATIG" : "LAAG";
         } else if (r.startsWith("REDEN:")) {
           huidig.reden = r.replace("REDEN:", "").trim();
         } else if (r.startsWith("ACTIE:")) {
@@ -2807,12 +2863,14 @@ function Stap9({ bedrijf, csvData, onBack }) {
     }
     if (huidig) campagnes.push(huidig);
     flushSectie();
-    return { campagnes, guardian, fatigue, samenvatting };
+    // Sort by prioriteit (1 eerst)
+    campagnes.sort((a, b) => (a.prioriteit || 2) - (b.prioriteit || 2));
+    return { campagnes, guardian, fatigue, samenvatting, ownerSummary };
   };
 
   const renderEvaluatie = (tekst) => {
     if (!tekst) return null;
-    const { campagnes, guardian, fatigue, samenvatting } = parseerEvaluatie(tekst);
+    const { campagnes, guardian, fatigue, samenvatting, ownerSummary } = parseerEvaluatie(tekst);
     const kleurMap = {
       "STOP DIRECT":   { dot:"#cc2200", bg:"#fff5f5", brd:"#ffcccc", txt:"#5a0000", icoon:"🔴", label:"Stop direct" },
       "OPTIMALISEER":  { dot:"#e08000", bg:"#fffbf0", brd:"#f0d880", txt:"#5a3000", icoon:"🟡", label:"Optimaliseer" },
@@ -2823,11 +2881,30 @@ function Stap9({ bedrijf, csvData, onBack }) {
       const kl = kleurMap[blok.beslissing] || kleurMap["BLIJVEN LOPEN"];
       return (
         <div key={idx} style={{ border:`2px solid ${kl.brd}`, borderRadius:12, marginBottom:12, overflow:"hidden" }}>
-          <div style={{ background:kl.bg, borderBottom:`1px solid ${kl.brd}`, padding:"12px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
-            <div style={{ fontFamily:font.body, fontWeight:700, fontSize:14, color:C.navy }}>{blok.naam || "Campagne"}</div>
-            <div style={{ display:"flex", alignItems:"center", gap:8, background:"white", borderRadius:8, padding:"5px 12px", border:`1px solid ${kl.brd}` }}>
-              <div style={{ width:12, height:12, borderRadius:"50%", background:kl.dot, flexShrink:0 }} />
-              <span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:kl.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl.icoon} {kl.label}</span>
+          <div style={{ background:kl.bg, borderBottom:`1px solid ${kl.brd}`, padding:"12px 18px" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8, marginBottom:6 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                {blok.prioriteit === 1 && <span style={{ background:C.groen, color:"#fff", fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:4, fontFamily:font.body, letterSpacing:"1px" }}>EERST</span>}
+                {blok.prioriteit === 3 && <span style={{ background:C.bgMid, color:C.muted, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:4, fontFamily:font.body, letterSpacing:"1px" }}>MAG WACHTEN</span>}
+                <div style={{ fontFamily:font.body, fontWeight:700, fontSize:14, color:C.text }}>{blok.naam || "Campagne"}</div>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                {blok.vertrouwen && (
+                  <span style={{
+                    fontSize:10, fontWeight:700, fontFamily:font.body, padding:"2px 9px", borderRadius:4,
+                    background: blok.vertrouwen==="STERK" ? "#E8F5EE" : blok.vertrouwen==="MATIG" ? "#FEF9EC" : "#FEF0F0",
+                    color: blok.vertrouwen==="STERK" ? C.groen : blok.vertrouwen==="MATIG" ? "#8A6200" : "#B03A2E",
+                    border: `1px solid ${blok.vertrouwen==="STERK" ? C.borderGreen : blok.vertrouwen==="MATIG" ? "#E8D080" : "#F0B0A0"}`,
+                    letterSpacing:"1px",
+                  }}>
+                    {blok.vertrouwen==="STERK" ? "✓ Betrouwbaar" : blok.vertrouwen==="MATIG" ? "~ Indicatief" : "⚠ Weinig data"}
+                  </span>
+                )}
+                <div style={{ display:"flex", alignItems:"center", gap:6, background:"white", borderRadius:7, padding:"4px 10px", border:`1px solid ${kl.brd}` }}>
+                  <div style={{ width:10, height:10, borderRadius:"50%", background:kl.dot, flexShrink:0 }} />
+                  <span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:kl.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl.icoon} {kl.label}</span>
+                </div>
+              </div>
             </div>
           </div>
           <div style={{ padding:"14px 18px", background:"white" }}>
@@ -2848,8 +2925,22 @@ function Stap9({ bedrijf, csvData, onBack }) {
     return (
       <div>
         {campagnes.length === 0 && <div style={{ fontFamily:font.body, fontSize:13, color:C.muted, lineHeight:1.75, whiteSpace:"pre-wrap" }}>{tekst}</div>}
+
+        {/* DAILY OWNER SUMMARY — bovenaan */}
+        {ownerSummary && (
+          <div style={{ background: C.groen, borderRadius:12, padding:"18px 22px", marginBottom:20 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+              <span style={{ fontSize:18 }}>🎯</span>
+              <span style={{ fontFamily:font.display, fontWeight:700, fontSize:14, color:"#FFFFFF", textTransform:"uppercase", letterSpacing:"1.5px" }}>Wat doe je vandaag?</span>
+            </div>
+            <div style={{ fontFamily:font.body, fontSize:14, color:"rgba(255,255,255,.92)", lineHeight:1.8 }}>{ownerSummary}</div>
+          </div>
+        )}
+
         {campagnes.length > 0 && <>
-          <div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:12 }}>Evaluatie per campagne ({campagnes.length})</div>
+          <div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:10 }}>
+            Evaluatie per campagne ({campagnes.length}) — gesorteerd op prioriteit
+          </div>
           {campagnes.map((blok, i) => <CampagneKaart key={i} blok={blok} idx={i} />)}
         </>}
         {guardian && <><SectieTitel icoon="🛡️" label="Budget Guardian" kleur="#b05000" /><div style={{ background:"#fff8f0", border:"1px solid #f0d0a0", borderRadius:10, padding:"12px 16px", fontFamily:font.body, fontSize:13, color:"#5a3000", lineHeight:1.75, whiteSpace:"pre-wrap" }}>{guardian}</div></>}
@@ -2898,9 +2989,9 @@ function Stap9({ bedrijf, csvData, onBack }) {
         <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:6 }}>
           <span style={{ fontSize:26 }}>📊</span>
           <div>
-            <h2 style={{ fontFamily:font.display, fontWeight:700, fontSize:22, margin:0, color:C.navy }}>Campagne Evaluatie</h2>
+            <h2 style={{ fontFamily:font.display, fontWeight:700, fontSize:22, margin:0, color:C.text }}>Campagne Evaluatie</h2>
             <p style={{ color:C.muted, fontSize:13, fontFamily:font.body, margin:0 }}>
-              AI-coach analyseert je campagnes — wat stoppen, optimaliseren, opschalen of testen
+              Je co-pilot analyseert je campagnes en zegt wat je vandaag doet, optimaliseert en stopzet
             </p>
           </div>
         </div>
@@ -3072,11 +3163,11 @@ export default function App() {
               width: 36, height: 36, borderRadius: 9,
               background: "rgba(255,255,255,.2)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18, boxShadow: "none", color: "#FFFFFF", fontWeight: 800, border: "1.5px solid rgba(255,255,255,.3)",
-            }}>◆</div>
+              fontSize: 16, boxShadow: "none", color: "#FFFFFF", fontWeight: 800, border: "1.5px solid rgba(255,255,255,.3)",
+            }}>✦</div>
             <div>
-              <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 19, color: "#FFFFFF", lineHeight: 1, letterSpacing: ".5px", fontWeight: 700 }}>Meta Ads Bureau</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,.75)", fontWeight: 600, letterSpacing: "2.5px", textTransform: "uppercase" }}>AI Campagne Builder</div>
+              <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 19, color: "#FFFFFF", lineHeight: 1, letterSpacing: ".5px", fontWeight: 700 }}>Meta Ads Co-pilot</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,.75)", fontWeight: 600, letterSpacing: "2.5px", textTransform: "uppercase" }}>Jouw Meta Ads Co-pilot</div>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -3127,7 +3218,7 @@ export default function App() {
         </div>
         <div>
           <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 20, color: C.groen, letterSpacing: ".3px", marginBottom: 4, lineHeight: 1 }}>
-            Meta Ads Bureau
+            Meta Ads Co-pilot
           </div>
           <div style={{ fontSize: 11, color: C.muted, fontFamily: font.body, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 3 }}>
             AI-aangedreven campagne builder
