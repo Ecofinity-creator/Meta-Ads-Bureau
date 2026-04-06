@@ -669,7 +669,7 @@ Geef 3 tips en 3 sector-specifieke zoektermen. Wees concreet en gebruik de bedri
                 )}
               </button>
               <div style={{ fontSize: 11, color: C.muted, textAlign: "center", marginTop: 8, fontFamily: font.body }}>
-                De AI analyseert jouw aanbod en geeft specifiek advies voor deze stap.
+                De Jouw co-pilot geeft specifiek advies voor deze stap.
               </div>
             </div>
           )}
@@ -1005,12 +1005,7 @@ function UspSuggester({ naam, url, onInsert }) {
         : "professionele dienstverlening";
       const sysprompt = "Je bent een marketing expert. Geef output ALLEEN als JSON object, geen uitleg, geen markdown blokken.";
       const userprompt = "Zoek online wat " + naam + (url ? " (" + url + ")" : "") + " werkelijk aanbiedt en verkoopt. Dit is een ECHT bedrijf. Genereer 6 USPs die specifiek zijn voor DIT bedrijf, niet voor de sector in het algemeen. Gebruik hun echte onderscheidende factoren: locatie, specialisatie, ervaring, certificaten, werkwijze, garanties. Sector: " + sector + ". Output als JSON: sector (string), samenvatting (2 zinnen over dit specifieke bedrijf), usps (array van exact 6 strings elk max 10 woorden, specifiek voor dit bedrijf), bronnen (lege array).";
-      const _key = getApiKey();
-      const _hdrs = { "Content-Type": "application/json", "anthropic-version": "2023-06-01" };
-      if (_key) _hdrs["x-api-key"] = _key;
-      const resp = await fetch("/api", { method: "POST", headers: _hdrs, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: sysprompt, messages: [{ role: "user", content: userprompt }] }) });
-      const data = await resp.json();
-      const raw = (data.content || []).map(c => c.text || "").join("");
+      const raw = await callSearch(sysprompt, userprompt, 1000);
       const parsed = parseJsonSafe(raw, null);
       if (parsed && Array.isArray(parsed.usps) && parsed.usps.length > 0) {
         setUsps(parsed.usps.map(t => ({ tekst: t, geselecteerd: true })));
@@ -1093,14 +1088,14 @@ function UspSuggester({ naam, url, onInsert }) {
               USP's opzoeken voor {naam}
             </div>
             <div style={{ fontSize: 11, color: "#4ade80", fontWeight: 600, letterSpacing: ".5px" }}>
-              AI zoekt online en stelt unieke voordelen voor
+              Jouw co-pilot zoekt online en stelt USP's voor
             </div>
           </div>
         </div>
         {loading ? (
           <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#4ade80", fontSize: 13, fontWeight: 600 }}>
             <span style={{ width: 14, height: 14, border: "2px solid #1a4a22", borderTop: "2px solid #4ade80", borderRadius: "50%", animation: "spin 1s linear infinite", display: "inline-block" }} />
-            Online opzoeken…
+            Co-pilot zoekt online…
           </div>
         ) : (
           <button onClick={genereer} style={{
@@ -1112,7 +1107,7 @@ function UspSuggester({ naam, url, onInsert }) {
             cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
             letterSpacing: ".3px",
           }}>
-            {gegenereerd ? "↻ Opnieuw opzoeken" : "🔍 Zoek USP's op"}
+            {gegenereerd ? "↻ Opnieuw zoeken" : "🔍 Co-pilot: zoek USP's op"}
           </button>
         )}
       </div>
@@ -1296,17 +1291,7 @@ function AanbodSuggester({ naam, url, onInsert }) {
         : "professionele dienstverlening";
       const sysprompt = "Je bent een marketing expert. Geef output ALLEEN als JSON, geen uitleg.";
       const userprompt = "Zoek online naar het echte aanbod van " + naam + (url ? " (website: " + url + ")" : "") + ". Dit is een ECHT bedrijf — zoek hun specifieke producten, diensten en prijzen. Sector indicatie: " + sector + ". Schrijf een nauwkeurig aanbodprofiel gebaseerd op wat dit specifieke bedrijf verkoopt, niet op sectorgemiddelden. Output als JSON: diensten (specifiek voor dit bedrijf), prijs (hun echte prijsklasse indien gevonden), doelgroep (hun werkelijke doelgroep), positionering (hoe zij zichzelf onderscheiden), aanbod_tekst (5-7 zinnen specifiek over dit bedrijf voor Meta Ads), bronnen (leeg array).";
-      const _key2 = getApiKey();
-      const _url2 = window.location.protocol === "file:" ? "https://api.anthropic.com/v1/messages" : "/api";
-      const _hdrs2 = { "Content-Type": "application/json", "anthropic-version": "2023-06-01" };
-      if (_key2) _hdrs2["x-api-key"] = _key2;
-      const resp = await fetch(_url2, {
-        method: "POST",
-        headers: _hdrs2,
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1200, system: sysprompt, messages: [{ role: "user", content: userprompt }] }),
-      });
-      const data = await resp.json();
-      const raw = (data.content || []).map(c => c.text || "").join("");
+      const raw = await callSearch(sysprompt, userprompt, 1200);
       setAanbodFout("");
       const parsed = parseJsonSafe(raw, null);
       if (parsed && parsed.aanbod_tekst) {
@@ -1350,14 +1335,14 @@ function AanbodSuggester({ naam, url, onInsert }) {
               Aanbod opzoeken voor {naam}
             </div>
             <div style={{ fontSize: 11, color: "#60a5fa", fontWeight: 600, letterSpacing: ".5px" }}>
-              AI zoekt online en stelt een aanbodtekst voor
+              Jouw co-pilot zoekt online en stelt je aanbod voor
             </div>
           </div>
         </div>
         {loading ? (
           <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#60a5fa", fontSize: 13, fontWeight: 600 }}>
             <span style={{ width: 14, height: 14, border: "2px solid #1e3050", borderTop: "2px solid #60a5fa", borderRadius: "50%", animation: "spin 1s linear infinite", display: "inline-block" }} />
-            Aanbod opzoeken…
+            Co-pilot zoekt je aanbod op…
           </div>
         ) : (
           <button onClick={genereer} style={{
@@ -1368,7 +1353,7 @@ function AanbodSuggester({ naam, url, onInsert }) {
             fontFamily: font.body, fontWeight: 700, fontSize: 12,
             cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
           }}>
-            {gegenereerd ? "↻ Opnieuw opzoeken" : "🌐 Zoek aanbod op"}
+            {gegenereerd ? "↻ Opnieuw zoeken" : "🔍 Co-pilot: zoek aanbod op"}
           </button>
         )}
       </div>
@@ -1766,7 +1751,7 @@ Alleen de JSON array, geen uitleg.`
       </div>
       <Textarea label="Of beschrijf je doelgroep handmatig" value={handmatig} onChange={setHandmatig}
         placeholder="bv. Zaakvoerders van KMO's in Vlaanderen, 35-55 jaar…" rows={5} />
-      {loading ? <Loader text="Doelgroep analyseren" stappen={analyseStappen} /> : <Btn onClick={analyseer}>Co-pilot: bouw segmenten →</Btn>}
+      {loading ? <Loader text="Co-pilot analyseert je doelgroep" stappen={analyseStappen} /> : <Btn onClick={analyseer}>Co-pilot: bouw segmenten →</Btn>}
     </Card>
   );
 }
@@ -2132,7 +2117,7 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
         </div>
       )}
       {loading
-        ? <Loader text="Pijnpunten analyseren" stappen={pijnStappen} />
+        ? <Loader text="Co-pilot analyseert pijnpunten" stappen={pijnStappen} />
         : <Btn onClick={analyseer}>Co-pilot: analyseer pijnpunten →</Btn>
       }
     </Card>
@@ -2333,7 +2318,7 @@ function Stap6({ bedrijf, combinaties, segmenten, pijnpunten, onNext, onBack, on
       <SectorBalk aanbod={bedrijf.aanbod} />
       {loading && (
         <div style={{ marginBottom: 24 }}>
-          <Loader text={"AI-suggesties genereren voor " + bedrijf.naam} stappen={[
+          <Loader text={"Co-pilot kiest insteken voor " + bedrijf.naam} stappen={[
             { tekst: "Bedrijfsprofiel en segmenten analyseren…", klaar: false },
             { tekst: "Beste campagneformules bepalen…", klaar: false },
           ]} />
@@ -2466,7 +2451,7 @@ JSON: {"fotos":[{"concept":"...","prompt":"Engelse prompt","waarom":"..."}],"vid
       <Card style={{ marginBottom: 18 }}>
         <SectionHeader title="✍️ Advertentieteksten & Kopteksten">
           {loadingAds ? (
-            <Loader text="Advertentieteksten genereren" stappen={[
+            <Loader text="Co-pilot schrijft advertentieteksten" stappen={[
               { tekst: "Bedrijf, segment en pijnpunt combineren…", klaar: false },
               { tekst: "5 advertentieteksten schrijven (Emotioneel, Rationeel, Direct, Urgentie, Droom)…", klaar: false },
               { tekst: "10 kopteksten genereren…", klaar: false },
@@ -3047,10 +3032,14 @@ function Stap9({ bedrijf, csvData, onBack }) {
       const r = regel.trim().replace(/[*]{1,2}([^*]*)[*]{1,2}/g, "$1");
       if (!r) continue;
       const up = r.toUpperCase();
-      if (r.startsWith("---CAMPAGNE:") || r.startsWith("--- CAMPAGNE:")) {
+      const isCampagneLijn = r.startsWith("---CAMPAGNE:") || r.startsWith("--- CAMPAGNE:")
+        || (up.startsWith("CAMPAGNE:") && !sectie)
+        || (r.startsWith("**CAMPAGNE:") || r.startsWith("## CAMPAGNE:"));
+      if (isCampagneLijn) {
         if (huidig) campagnes.push(huidig);
         flushSectie(); sectie = null;
-        huidig = { naam: r.replace(/---\s*CAMPAGNE:\s*/i, "").trim(), beslissing: "", prioriteit: 2, vertrouwen: "", reden: "", actie: "" };
+        const naam = r.replace(/^[-*# ]*CAMPAGNE:\s*/i, "").trim();
+        huidig = { naam, beslissing: "", prioriteit: 2, vertrouwen: "", reden: "", actie: "" };
       } else if (r.trim() === "---") {
         if (huidig) { campagnes.push(huidig); huidig = null; }
       } else if (up.includes("OWNER SUMMARY") && !huidig) {
@@ -3114,37 +3103,27 @@ function Stap9({ bedrijf, csvData, onBack }) {
       const beslissing = blok.beslissing || "BLIJVEN LOPEN";
       const kl = kleurMap[beslissing] || kleurMap["BLIJVEN LOPEN"];
       return (
-        <div key={idx} style={{ border:`2px solid ${kl.brd}`, borderRadius:12, marginBottom:12, overflow:"hidden" }}>
-          <div style={{ background:kl.bg, borderBottom:`1px solid ${kl.brd}`, padding:"12px 18px" }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8, marginBottom:6 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                {blok.prioriteit === 1 && <span style={{ background:C.groen, color:"#fff", fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:4, fontFamily:font.body, letterSpacing:"1px" }}>EERST</span>}
-                {blok.prioriteit === 3 && <span style={{ background:C.bgMid, color:C.muted, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:4, fontFamily:font.body, letterSpacing:"1px" }}>MAG WACHTEN</span>}
-                <div style={{ fontFamily:font.body, fontWeight:700, fontSize:14, color:C.text }}>{blok.naam || "Campagne"}</div>
-              </div>
-              <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                {blok.vertrouwen && (
-                  <span style={{
-                    fontSize:10, fontWeight:700, fontFamily:font.body, padding:"2px 9px", borderRadius:4,
-                    background: blok.vertrouwen==="STERK" ? "#E8F5EE" : blok.vertrouwen==="MATIG" ? "#FEF9EC" : "#FEF0F0",
-                    color: blok.vertrouwen==="STERK" ? C.groen : blok.vertrouwen==="MATIG" ? "#8A6200" : "#B03A2E",
-                    border: `1px solid ${blok.vertrouwen==="STERK" ? C.borderGreen : blok.vertrouwen==="MATIG" ? "#E8D080" : "#F0B0A0"}`,
-                    letterSpacing:"1px",
-                  }}>
-                    {blok.vertrouwen==="STERK" ? "✓ Betrouwbaar" : blok.vertrouwen==="MATIG" ? "~ Indicatief" : "⚠ Weinig data"}
-                  </span>
-                )}
-                <div style={{ display:"flex", alignItems:"center", gap:8, background:kl.bg, border:`2.5px solid ${kl.dot}`, borderRadius:24, padding:"6px 16px", boxShadow:`0 2px 8px ${kl.dot}30` }}>
-                  <div style={{ width:16, height:16, borderRadius:"50%", background:kl.dot, flexShrink:0, boxShadow:`0 0 0 4px ${kl.dot}25` }} />
-                  <span style={{ fontFamily:font.body, fontWeight:800, fontSize:13, color:kl.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl.icoon} {kl.label}</span>
-                </div>
-              </div>
+        <div style={{ borderLeft:`4px solid ${kl.dot}`, borderRadius:"0 10px 10px 0", paddingLeft:16, paddingTop:14, paddingBottom:14, paddingRight:16, marginBottom:20, background: kl.bg, border:`1px solid ${kl.brd}`, borderLeftWidth:5, borderRadius:10 }}>
+          {/* Naam + bol op dezelfde rij */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+            <div style={{ width:16, height:16, borderRadius:"50%", background:kl.dot, flexShrink:0, boxShadow:`0 0 0 4px ${kl.dot}25` }} />
+            <div style={{ fontFamily:font.display, fontWeight:700, fontSize:15, color:C.text, flex:1 }}>{blok.naam || "Campagne"}</div>
+            <div style={{ display:"flex", alignItems:"center", gap:6, background:"white", border:`1.5px solid ${kl.dot}`, borderRadius:16, padding:"4px 12px" }}>
+              <span style={{ fontFamily:font.body, fontWeight:800, fontSize:12, color:kl.dot, textTransform:"uppercase", letterSpacing:"1px" }}>{kl.icoon} {kl.label}</span>
             </div>
           </div>
-          <div style={{ padding:"14px 18px", background:"white" }}>
-            {blok.reden && <div style={{ marginBottom:10 }}><span style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.muted, textTransform:"uppercase", letterSpacing:"1px" }}>Reden &nbsp;</span><span style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.6 }}>{blok.reden}</span></div>}
-            {blok.actie && <div style={{ background:C.groenLight, border:`1px solid ${C.borderGreen}`, borderRadius:8, padding:"8px 14px", display:"flex", gap:8 }}><span style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.groen, textTransform:"uppercase", letterSpacing:"1px", flexShrink:0, paddingTop:2 }}>Actie</span><span style={{ fontFamily:font.body, fontSize:13, color:C.navy, lineHeight:1.6 }}>{blok.actie}</span></div>}
-            {!blok.reden && !blok.actie && <div style={{ fontFamily:font.body, fontSize:13, color:C.muted, fontStyle:"italic" }}>Geen details beschikbaar.</div>}
+          {/* Prioriteit + vertrouwen op één rij */}
+          <div style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap" }}>
+            {blok.prioriteit === 1 && <span style={{ background:C.groen, color:"#fff", fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:4, fontFamily:font.body, letterSpacing:"1px" }}>EERST AANPAKKEN</span>}
+            {blok.prioriteit === 3 && <span style={{ background:C.bgWarm, color:C.muted, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:4, fontFamily:font.body }}>MAG WACHTEN</span>}
+            {blok.vertrouwen && <span style={{ fontSize:10, fontWeight:700, fontFamily:font.body, padding:"2px 8px", borderRadius:4, background: blok.vertrouwen==="STERK"?"#E8F5EE":blok.vertrouwen==="MATIG"?"#FEF9EC":"#FEF0F0", color: blok.vertrouwen==="STERK"?C.groen:blok.vertrouwen==="MATIG"?"#8A6200":"#B03A2E" }}>
+              {blok.vertrouwen==="STERK" ? "✓ Voldoende data" : blok.vertrouwen==="MATIG" ? "~ Indicatief" : "⚠ Weinig data"}
+            </span>}
+          </div>
+          {/* Reden en actie compact */}
+          <div style={{ fontFamily:font.body, fontSize:13, color:kl.txt||C.textSoft, lineHeight:1.65 }}>
+            {blok.reden && <div><strong>Reden:</strong> {blok.reden}</div>}
+            {blok.actie && <div style={{ marginTop:6, background:"rgba(255,255,255,.6)", borderRadius:6, padding:"6px 10px", display:"flex", gap:6 }}><span style={{ fontWeight:700, color:C.groen, flexShrink:0 }}>→ Actie:</span> {blok.actie}</div>}
           </div>
         </div>
       );
@@ -3362,7 +3341,7 @@ function Stap9({ bedrijf, csvData, onBack }) {
 
         <div style={{ marginTop:14 }}>
           {loading
-            ? <Loader text="Campagnes analyseren" stappen={[
+            ? <Loader text="Co-pilot analyseert campagnes" stappen={[
                 { tekst: "Campagnedata inlezen en analyseren…", klaar: false },
                 { tekst: "Vergelijken met sector-benchmarks…", klaar: false },
                 { tekst: "Beslissingen formuleren per campagne…", klaar: false },
