@@ -1004,7 +1004,10 @@ function UspSuggester({ naam, url, onInsert }) {
         : sectorHint.includes("consult") || sectorHint.includes("advies") ? "consultancy"
         : "professionele dienstverlening";
       const sysprompt = "Je bent een marketing expert. Geef output ALLEEN als JSON object, geen uitleg, geen markdown blokken.";
-      const userprompt = "Zoek online wat " + naam + (url ? " (" + url + ")" : "") + " werkelijk aanbiedt en verkoopt. Dit is een ECHT bedrijf. Genereer 6 USPs die specifiek zijn voor DIT bedrijf, niet voor de sector in het algemeen. Gebruik hun echte onderscheidende factoren: locatie, specialisatie, ervaring, certificaten, werkwijze, garanties. Sector: " + sector + ". Output als JSON: sector (string), samenvatting (2 zinnen over dit specifieke bedrijf), usps (array van exact 6 strings elk max 10 woorden, specifiek voor dit bedrijf), bronnen (lege array).";
+      const zoekUSP = url
+        ? "Bezoek de website " + url + " van het Belgische bedrijf " + naam + ". Lees hun 'Over ons', 'Diensten' en andere pagina's. Zoek naar: hun specialisatie, locatie, ervaringsjaren, certificaten of keurmerken, garanties, werkwijze, klantenreferenties. Genereer 6 USPs die UITSLUITEND gebaseerd zijn op wat je op hun website vindt. Gebruik Belgische terminologie (niet 'Nederlands', maar 'Belgisch' of de specifieke regio). Elke USP max 10 woorden."
+        : "Zoek op het internet naar het Belgische bedrijf '" + naam + "'. Gebruik hun website, Google-vermelding en sociale media. Genereer 6 USPs gebaseerd op wat je vindt. Gebruik Belgische terminologie.";
+      const userprompt = zoekUSP + " Geef output als JSON: sector (string, hun werkelijke sector), samenvatting (2 zinnen over dit specifieke Belgische bedrijf, gebruik hun echte naam en locatie), usps (array van exact 6 strings, elk max 10 woorden, geen generieke marketing-clichés), bronnen (lege array).";
       const raw = await callSearch(sysprompt, userprompt, 1000);
       const parsed = parseJsonSafe(raw, null);
       if (parsed && Array.isArray(parsed.usps) && parsed.usps.length > 0) {
@@ -1088,7 +1091,7 @@ function UspSuggester({ naam, url, onInsert }) {
               USP's opzoeken voor {naam}
             </div>
             <div style={{ fontSize: 11, color: "#4ade80", fontWeight: 600, letterSpacing: ".5px" }}>
-              Jouw co-pilot zoekt online en stelt USP's voor
+              Jouw co-pilot bezoekt je website en stelt bedrijfsspecifieke USP's op
             </div>
           </div>
         </div>
@@ -1289,9 +1292,12 @@ function AanbodSuggester({ naam, url, onInsert }) {
         : sectorHint.includes("bouw") || sectorHint.includes("construct") ? "bouw en infrastructuur"
         : sectorHint.includes("consult") || sectorHint.includes("advies") ? "consultancy"
         : "professionele dienstverlening";
-      const sysprompt = "Je bent een marketing expert. Geef output ALLEEN als JSON, geen uitleg.";
-      const userprompt = "Zoek online naar het echte aanbod van " + naam + (url ? " (website: " + url + ")" : "") + ". Dit is een ECHT bedrijf — zoek hun specifieke producten, diensten en prijzen. Sector indicatie: " + sector + ". Schrijf een nauwkeurig aanbodprofiel gebaseerd op wat dit specifieke bedrijf verkoopt, niet op sectorgemiddelden. Output als JSON: diensten (specifiek voor dit bedrijf), prijs (hun echte prijsklasse indien gevonden), doelgroep (hun werkelijke doelgroep), positionering (hoe zij zichzelf onderscheiden), aanbod_tekst (5-7 zinnen specifiek over dit bedrijf voor Meta Ads), bronnen (leeg array).";
-      const raw = await callSearch(sysprompt, userprompt, 1200);
+      const sysprompt = "Je bent een Belgische marketingexpert gespecialiseerd in lokale KMO's en zelfstandigen. Geef output ALLEEN als geldige JSON zonder uitleg of markdown.";
+      const zoekOpdracht = url
+        ? "Bezoek de website " + url + " en lees de pagina's over producten, diensten en aanbod. Wat verkoopt " + naam + " exact? Welke specifieke producten of diensten staan op hun website? Welke prijzen of prijsklassen vermelden ze? Voor welke klanten werken ze (particulieren, KMO's, installateurs...)? Gebruik ALLEEN informatie van hun eigen website — geen veronderstellingen. Schrijf de aanbod_tekst als een directe aanspreekvorm ('Wij installeren...') in het Nederlands voor de Belgische markt."
+        : "Zoek op het internet naar het bedrijf '" + naam + "' in België. Zoek naar hun website, Facebook-pagina en Google-vermelding. Wat verkopen ze exact? Welke diensten of producten bieden ze aan? Schrijf de aanbod_tekst in directe aanspreekvorm voor de Belgische markt.";
+      const userprompt = zoekOpdracht + " Geef je antwoord als JSON met deze velden: diensten (string, opsomming van hun specifieke producten/diensten), prijs (string, prijsklasse of 'niet vermeld op website'), doelgroep (string, wie zijn hun klanten), positionering (string, hoe onderscheiden ze zich), aanbod_tekst (string, 5-6 zinnen in het Nederlands specifiek over dit bedrijf, schrijf in de ik-/wij-vorm als het bedrijf zelf). Geen bronnen-veld nodig.";
+      const raw = await callSearch(sysprompt, userprompt, 1400);
       setAanbodFout("");
       const parsed = parseJsonSafe(raw, null);
       if (parsed && parsed.aanbod_tekst) {
@@ -1335,7 +1341,7 @@ function AanbodSuggester({ naam, url, onInsert }) {
               Aanbod opzoeken voor {naam}
             </div>
             <div style={{ fontSize: 11, color: "#60a5fa", fontWeight: 600, letterSpacing: ".5px" }}>
-              Jouw co-pilot zoekt online en stelt je aanbod voor
+              Jouw co-pilot bezoekt je website en stelt je aanbodprofiel op
             </div>
           </div>
         </div>
@@ -1363,9 +1369,9 @@ function AanbodSuggester({ naam, url, onInsert }) {
           {/* Opgesplitste info */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
             {[
-              { label: "📦 Diensten/Producten", val: resultaat.diensten },
+              { label: "📦 Diensten/Producten", val: resultaat.diensten},
               { label: "💶 Prijs", val: resultaat.prijs },
-              { label: "👤 Doelgroep", val: resultaat.doelgroep },
+              { label: "👤 Doelgroep", val: resultaat.doelgroep},
               { label: "🎯 Positionering", val: resultaat.positionering },
             ].map((r, i) => (
               <div key={i} style={{
@@ -1375,8 +1381,13 @@ function AanbodSuggester({ naam, url, onInsert }) {
                 <div style={{ fontSize: 11, color: "#60a5fa", fontWeight: 700, letterSpacing: ".5px", marginBottom: 5, textTransform: "uppercase" }}>
                   {r.label}
                 </div>
-                <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.55 }}>
-                  {r.val || <span style={{ color: C.muted, fontStyle: "italic" }}>Niet gevonden</span>}
+                <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.7, whiteSpace: "pre-line" }}>
+                  {r.val
+                    ? r.val.split(",").map(s => s.trim()).filter(Boolean).length > 1
+                      ? r.val.split(",").map((s, si) => <div key={si} style={{ paddingLeft: si > 0 ? 0 : 0 }}>{"• " + s.trim()}</div>)
+                      : r.val
+                    : <span style={{ color: C.muted, fontStyle: "italic" }}>Niet gevonden</span>
+                  }
                 </div>
               </div>
             ))}
@@ -1676,7 +1687,13 @@ function Stap1({ data, setData, onNext, onHelp }) {
         sub="Je co-pilot gebruikt deze info als basis voor elke volgende stap."
         onHelp={onHelp} heeftNaam={false} />
       <Input label="Bedrijfsnaam *" value={data.naam} onChange={v => setData({ ...data, naam: v })} placeholder="bv. GrowthLab BV" />
-      <Input label="Website URL" value={data.url} onChange={v => setData({ ...data, url: v })} placeholder="bv. https://growthlab.be" />
+      <Input label="Website URL" value={data.url} onChange={v => setData({ ...data, url: v })} placeholder="bv. https://jouwbedrijf.be" />
+      {!data.url.trim() && data.naam.trim() && (
+        <div style={{ background: "#FEF9EC", border: "1px solid #E8D080", borderRadius: 8, padding: "8px 14px", marginTop: -12, marginBottom: 16, fontFamily: font.body, fontSize: 12, color: "#8A6200", display: "flex", gap: 8 }}>
+          <span>💡</span>
+          <span><strong>Tip:</strong> Vul je website-URL in voor nauwkeurigere resultaten. Je co-pilot bezoekt dan je eigen website om je aanbod en USP's correct op te zoeken.</span>
+        </div>
+      )}
 
       {/* Aanbod Suggester — blauw */}
       <AanbodSuggester naam={data.naam} url={data.url} onInsert={insertAanbod} />
@@ -1958,7 +1975,7 @@ function Stap3({ bedrijf, segmenten, setSegmenten, onNext, onHelp }) {
         + "\n\nGenereer 10 SPECIFIEKE pijnpunten voor de klanten van dit bedrijf."
         + " Elke pijnpunt: ik-zin, max 12 woorden, direct over het product of de sector."
         + "\n\n1.";
-      setPijnStappen([{ tekst: "Context verwerkt ✓", klaar: true }, { tekst: "AI analyseert pijnpunten voor " + bedrijf.naam + "…", klaar: false }]);
+      setPijnStappen([{ tekst: "Context verwerkt ✓", klaar: true }, { tekst: "Co-pilot analyseert pijnpunten voor " + bedrijf.naam + "…", klaar: false }]);
       const raw = await callClaude(sysprompt, prompt, 700);
       setPijnStappen([{ tekst: "Context verwerkt ✓", klaar: true }, { tekst: "Pijnpunten geïdentificeerd ✓", klaar: true }, { tekst: "Lijst opmaken…", klaar: false }]);
       const rawMet1 = "1." + (raw || "");
