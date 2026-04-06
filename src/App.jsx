@@ -1445,24 +1445,193 @@ function AanbodSuggester({ naam, url, onInsert }) {
   );
 }
 
+// ─── BUDGET GUARDIAN MODULE ───────────────────────────────────────────────────
+function BudgetGuardianModule({ aanbod, campagne }) {
+  const sector = detecteerSector(aanbod);
+  const playbook = sector ? SECTOR_PLAYBOOKS[sector] : null;
+  const [dagbudget, setDagbudget] = useState(15);
+  const cplMin = playbook ? parseInt(playbook.typisch_cpl.replace(/[^0-9]/g, "")) || 25 : 25;
+  const cplMax = playbook ? parseInt(playbook.typisch_cpl.split("–")[1]?.replace(/[^0-9]/g, "")) || 60 : 60;
+  const dagBudgetNum = parseFloat(dagbudget) || 15;
+  const testDagenMin = Math.ceil((cplMin * 3) / dagBudgetNum);
+  const testDagenMax = Math.ceil((cplMax * 3) / dagBudgetNum);
+  const totaalMin = Math.round(testDagenMin * dagBudgetNum);
+  const totaalMax = Math.round(testDagenMax * dagBudgetNum);
+  const waarschuwing = dagBudgetNum < cplMin / 2;
+
+  return (
+    <div style={{ background: "#F8F4FF", border: "1.5px solid #C8A8F0", borderRadius: 12, padding: "16px 20px", marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <span style={{ fontSize: 16 }}>🛡️</span>
+        <span style={{ fontFamily: font.body, fontWeight: 700, fontSize: 13, color: "#5A2D8A", textTransform: "uppercase", letterSpacing: "1px" }}>Budget Guardian</span>
+      </div>
+      <div style={{ fontFamily: font.body, fontSize: 12, color: "#4A3060", marginBottom: 14, lineHeight: 1.6 }}>
+        Hoeveel budget heb je nodig voor betrouwbare testresultaten?
+        {playbook && <span> Sector: <strong>{playbook.label}</strong> · Typische CPL: <strong>{playbook.typisch_cpl}</strong></span>}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+        <label style={{ fontFamily: font.body, fontSize: 12, color: "#5A2D8A", fontWeight: 600 }}>Dagbudget:</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="range" min="5" max="100" step="5" value={dagbudget}
+            onChange={e => setDagbudget(e.target.value)}
+            style={{ width: 120, accentColor: "#7B3FD0" }} />
+          <span style={{ fontFamily: font.body, fontWeight: 700, fontSize: 15, color: "#5A2D8A", minWidth: 52 }}>€{dagbudget}/dag</span>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: waarschuwing ? 12 : 0 }}>
+        <div style={{ background: "white", borderRadius: 8, padding: "10px 12px", border: "1px solid #D8B8F8", textAlign: "center" }}>
+          <div style={{ fontFamily: font.body, fontSize: 10, color: "#8A70A8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>Testperiode</div>
+          <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 16, color: "#3D1A6A" }}>{testDagenMin}–{testDagenMax} <span style={{ fontSize: 11, fontWeight: 400 }}>dagen</span></div>
+        </div>
+        <div style={{ background: "white", borderRadius: 8, padding: "10px 12px", border: "1px solid #D8B8F8", textAlign: "center" }}>
+          <div style={{ fontFamily: font.body, fontSize: 10, color: "#8A70A8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>Minimaal budget</div>
+          <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 16, color: "#3D1A6A" }}>€{totaalMin}–€{totaalMax}</div>
+        </div>
+        <div style={{ background: "white", borderRadius: 8, padding: "10px 12px", border: "1px solid #D8B8F8", textAlign: "center" }}>
+          <div style={{ fontFamily: font.body, fontSize: 10, color: "#8A70A8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>Min. leads nodig</div>
+          <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 16, color: "#3D1A6A" }}>3–5 <span style={{ fontSize: 11, fontWeight: 400 }}>voor beslissing</span></div>
+        </div>
+      </div>
+      {waarschuwing && (
+        <div style={{ background: "#FEF0F0", border: "1px solid #F0A0A0", borderRadius: 8, padding: "8px 12px", fontFamily: font.body, fontSize: 12, color: "#8A1A1A", lineHeight: 1.6 }}>
+          ⚠ <strong>Pas op:</strong> €{dagbudget}/dag is waarschijnlijk te laag voor je sector. Je haalt geen 3 leads in redelijke tijd. Verhoog naar minstens €{Math.ceil(cplMin / 2)}/dag.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── PRE-LAUNCH CHECKLIST ─────────────────────────────────────────────────────
+const CHECKLIST_ITEMS = [
+  { id: "boodschap", label: "Boodschap is duidelijk", detail: "De doelgroep begrijpt in 3 seconden wat het aanbod is en voor wie het is." },
+  { id: "cta", label: "CTA is concreet en zichtbaar", detail: "De actieknop is specifiek (niet 'Meer info' maar 'Vraag gratis advies aan')." },
+  { id: "landingspagina", label: "Landingspagina sluit aan op de advertentie", detail: "Dezelfde taal, hetzelfde aanbod, geen verrassingen na de klik." },
+  { id: "tracking", label: "Meta Pixel is actief", detail: "Events worden correct gemeten. Controleer via Meta Pixel Helper." },
+  { id: "teststructuur", label: "Teststructuur klopt", detail: "Één variabele tegelijk testen. Niet gelijktijdig audience EN creative wijzigen." },
+];
+
+function PreLaunchChecklist({ onDoorgaan }) {
+  const [checked, setChecked] = useState({});
+  const [geprobeerd, setGeprobeerd] = useState(false);
+  const aantalOk = Object.values(checked).filter(Boolean).length;
+  const klaarVoorLive = aantalOk >= 4;
+
+  const toggle = (id) => setChecked(prev => ({ ...prev, [id]: !prev[id] }));
+
+  return (
+    <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, padding: "24px 28px", boxShadow: C.shadow, marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+        <span style={{ fontSize: 22 }}>✅</span>
+        <div>
+          <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 18, color: C.text }}>Pre-launch Controle</div>
+          <div style={{ fontFamily: font.body, fontSize: 13, color: C.muted, marginTop: 2 }}>Controleer dit voordat je campagne live gaat. Zo vermijd je verspild budget.</div>
+        </div>
+      </div>
+
+      {/* Score balk */}
+      <div style={{ background: C.bgMid, borderRadius: 8, padding: "10px 14px", marginBottom: 18, display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ flex: 1, height: 8, background: C.border, borderRadius: 4, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${(aantalOk / CHECKLIST_ITEMS.length) * 100}%`, background: klaarVoorLive ? C.groen : aantalOk >= 2 ? "#E8A000" : "#CC2200", borderRadius: 4, transition: "width .3s" }} />
+        </div>
+        <span style={{ fontFamily: font.body, fontWeight: 700, fontSize: 13, color: klaarVoorLive ? C.groen : C.text, minWidth: 60 }}>
+          {aantalOk}/{CHECKLIST_ITEMS.length} OK
+        </span>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+        {CHECKLIST_ITEMS.map(item => {
+          const ok = !!checked[item.id];
+          return (
+            <div key={item.id} onClick={() => toggle(item.id)} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 16px", borderRadius: 10, cursor: "pointer", border: `1.5px solid ${ok ? C.groen : geprobeerd && !ok ? "#CC2200" : C.border}`, background: ok ? C.groenLight : geprobeerd && !ok ? "#FFF5F5" : C.bgMid, transition: "all .15s" }}>
+              <div style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, marginTop: 1, border: `2px solid ${ok ? C.groen : C.border}`, background: ok ? C.groen : "white", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: 13 }}>
+                {ok ? "✓" : ""}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: font.body, fontWeight: 600, fontSize: 14, color: ok ? C.groen : C.text, marginBottom: 3 }}>{item.label}</div>
+                <div style={{ fontFamily: font.body, fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{item.detail}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {geprobeerd && !klaarVoorLive && (
+        <div style={{ background: "#FEF0F0", border: "1px solid #F0A0A0", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontFamily: font.body, fontSize: 13, color: "#8A1A1A", lineHeight: 1.6 }}>
+          ⚠ Je hebt nog <strong>{CHECKLIST_ITEMS.length - aantalOk} punt{CHECKLIST_ITEMS.length - aantalOk !== 1 ? "en" : ""}</strong> niet afgevinkt. Zorg dat minstens 4 van de 5 punten in orde zijn voor je live gaat.
+        </div>
+      )}
+
+      {klaarVoorLive && (
+        <div style={{ background: C.groenLight, border: `1.5px solid ${C.groen}`, borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontFamily: font.body, fontSize: 13, color: C.groenDim, lineHeight: 1.6 }}>
+          ✅ <strong>Klaar voor livegang!</strong> Je campagne voldoet aan de basiscriteria. Ga verder naar Meta om alles in te stellen.
+        </div>
+      )}
+
+      <button onClick={() => { setGeprobeerd(true); if (klaarVoorLive) onDoorgaan(); }}
+        style={{ background: klaarVoorLive ? C.groen : C.bgMid, border: `1px solid ${klaarVoorLive ? C.groen : C.border}`, borderRadius: 10, padding: "11px 24px", color: klaarVoorLive ? "#fff" : C.muted, fontFamily: font.body, fontWeight: 700, fontSize: 14, cursor: "pointer", transition: "all .2s" }}>
+        {klaarVoorLive ? "Campagne instellen in Meta →" : `Nog ${CHECKLIST_ITEMS.length - aantalOk} punt${CHECKLIST_ITEMS.length - aantalOk !== 1 ? "en" : ""} afvinken`}
+      </button>
+    </div>
+  );
+}
+
+
 // ─── SECTOR BALK ─────────────────────────────────────────────────────────────
-function SectorBalk({ aanbod }) {
+function SectorBalk({ aanbod, compact = false }) {
   const sector = detecteerSector(aanbod);
   const playbook = sector ? SECTOR_PLAYBOOKS[sector] : null;
   if (!playbook) return null;
+  const maand = new Date().getMonth();
+  const seizoensInfo = playbook.seizoen && playbook.seizoen.find(s => {
+    if (s.includes("jan-mrt") && maand <= 2) return true;
+    if (s.includes("lente") && maand >= 2 && maand <= 4) return true;
+    if (s.includes("zomer") && maand >= 5 && maand <= 7) return true;
+    if (s.includes("sept-nov") && maand >= 8 && maand <= 10) return true;
+    if (s.includes("herfst") && maand >= 8 && maand <= 10) return true;
+    if (s.includes("winter") && (maand === 11 || maand <= 1)) return true;
+    return false;
+  });
+  if (compact) return (
+    <div style={{ background: C.groenLight, border: `1px solid ${C.borderGreen}`, borderRadius: 8, padding: "7px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <span style={{ fontFamily: font.body, fontWeight: 700, fontSize: 11, color: C.groen }}>📊 {playbook.label}</span>
+      <span style={{ fontFamily: font.body, fontSize: 11, color: C.textSoft }}>CPL: <strong>{playbook.typisch_cpl}</strong></span>
+      <span style={{ fontFamily: font.body, fontSize: 11, color: C.textSoft }}>CTR: <strong>{playbook.typisch_ctr}</strong></span>
+      {seizoensInfo && <span style={{ fontFamily: font.body, fontSize: 11, color: "#8A6200", background: "#FEF9EC", border: "1px solid #E8D080", borderRadius: 4, padding: "1px 7px" }}>📅 {seizoensInfo}</span>}
+    </div>
+  );
   return (
-    <div style={{ background: C.groenLight, border: `1px solid ${C.borderGreen}`, borderRadius: 10, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-      <span style={{ fontSize: 14 }}>📊</span>
-      <div style={{ flex: 1, minWidth: 200 }}>
-        <span style={{ fontFamily: font.body, fontWeight: 700, fontSize: 11, color: C.groen, textTransform: "uppercase", letterSpacing: "1px" }}>Sector: {playbook.label}</span>
-        <div style={{ fontFamily: font.body, fontSize: 12, color: C.textSoft, marginTop: 2 }}>
-          Typische CPL: <strong>{playbook.typisch_cpl}</strong> · CTR: <strong>{playbook.typisch_ctr}</strong>
-          {playbook.hooks && <span> · Sterkste hooks: {playbook.hooks.slice(0,2).join(", ")}</span>}
+    <div style={{ background: C.groenLight, border: `1px solid ${C.borderGreen}`, borderRadius: 12, padding: "14px 18px", marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <span style={{ fontSize: 16 }}>📊</span>
+        <div>
+          <span style={{ fontFamily: font.body, fontWeight: 700, fontSize: 12, color: C.groen, textTransform: "uppercase", letterSpacing: "1px" }}>Sector playbook: {playbook.label}</span>
+          {seizoensInfo && <span style={{ marginLeft: 10, fontFamily: font.body, fontSize: 11, color: "#8A6200", background: "#FEF9EC", border: "1px solid #E8D080", borderRadius: 4, padding: "2px 8px" }}>📅 {seizoensInfo}</span>}
         </div>
       </div>
-      {playbook.waarschuwingen && playbook.waarschuwingen[0] && (
-        <div style={{ fontFamily: font.body, fontSize: 11, color: "#8A6200", background: "#FEF9EC", border: "1px solid #E8D080", borderRadius: 6, padding: "4px 10px", maxWidth: 280 }}>
-          ⚠ {playbook.waarschuwingen[0]}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+        <div style={{ background: "white", borderRadius: 8, padding: "8px 12px", border: `1px solid ${C.border}` }}>
+          <div style={{ fontFamily: font.body, fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 3 }}>Typische CPL</div>
+          <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 15, color: C.text }}>{playbook.typisch_cpl}</div>
+        </div>
+        <div style={{ background: "white", borderRadius: 8, padding: "8px 12px", border: `1px solid ${C.border}` }}>
+          <div style={{ fontFamily: font.body, fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 3 }}>Typische CTR</div>
+          <div style={{ fontFamily: font.body, fontWeight: 700, fontSize: 15, color: C.text }}>{playbook.typisch_ctr}</div>
+        </div>
+      </div>
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ fontFamily: font.body, fontSize: 11, color: C.muted, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 5 }}>Sterkste hooks</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {(playbook.hooks || []).map((h, i) => (
+            <span key={i} style={{ fontFamily: font.body, fontSize: 12, background: "white", border: `1px solid ${C.borderGreen}`, borderRadius: 6, padding: "3px 10px", color: C.groenDim }}>{h}</span>
+          ))}
+        </div>
+      </div>
+      {playbook.waarschuwingen && playbook.waarschuwingen.length > 0 && (
+        <div style={{ background: "#FEF9EC", border: "1px solid #E8D080", borderRadius: 8, padding: "8px 12px" }}>
+          <div style={{ fontFamily: font.body, fontSize: 10, color: "#8A6200", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>⚠ Let op</div>
+          {playbook.waarschuwingen.map((w, i) => (
+            <div key={i} style={{ fontFamily: font.body, fontSize: 12, color: "#5a4000", lineHeight: 1.5 }}>· {w}</div>
+          ))}
         </div>
       )}
     </div>
@@ -2155,6 +2324,11 @@ function Stap6({ bedrijf, combinaties, segmenten, pijnpunten, onNext, onBack, on
           })}
         </div>
       )}
+      {/* ── Budget Guardian Module ── */}
+      {actiefCampagne && (
+        <BudgetGuardianModule aanbod={bedrijf.aanbod} campagne={actiefCampagne} />
+      )}
+
       <div style={{ marginBottom: 24 }}>
         <Input label="Of vul je eigen campagne-idee in" value={eigenIdee}
           onChange={v => { setEigenIdee(v); if (v) setGekozenSuggestie(null); }}
@@ -2329,6 +2503,7 @@ JSON: {"fotos":[{"concept":"...","prompt":"Engelse prompt","waarom":"..."}],"vid
 
 function Stap7({ bedrijf, segmenten, pijnpunten, combinaties, campagne, onBack, onHelp, onNaarMeta }) {
   const [actieve, setActieve] = useState(0);
+  const [toonChecklist, setToonChecklist] = useState(false);
   const combs = combinaties.map(k => {
     const [sId, pIdx] = k.split("_");
     const seg = segmenten.find(s => String(s.id) === sId);
@@ -2351,12 +2526,13 @@ function Stap7({ bedrijf, segmenten, pijnpunten, combinaties, campagne, onBack, 
             </button>
           ))}
         </div>
+        <SectorBalk aanbod={bedrijf.aanbod} compact={true} />
         {comb && (
-          <div style={{ marginTop: 14, padding: "10px 16px", background: C.goudLight, borderRadius: 10, fontSize: 13, fontFamily: font.body, border: `1px solid ${C.borderGold}` }}>
-            <span style={{ fontWeight: 700, color: C.goud }}>Segment:</span>{" "}
+          <div style={{ marginTop: 8, padding: "10px 16px", background: C.groenLight, borderRadius: 10, fontSize: 13, fontFamily: font.body, border: `1px solid ${C.borderGreen}` }}>
+            <span style={{ fontWeight: 700, color: C.groen }}>Segment:</span>{" "}
             <span style={{ color: C.textSoft }}>{comb.seg.naam} ({comb.seg.leeftijd}, {comb.seg.geslacht})</span>
             <span style={{ color: C.border }}> · </span>
-            <span style={{ fontWeight: 700, color: C.goud }}>Pijnpunt:</span>{" "}
+            <span style={{ fontWeight: 700, color: C.groen }}>Pijnpunt:</span>{" "}
             <span style={{ color: C.textSoft, fontStyle: "italic" }}>"{comb.pijnpunt}"</span>
           </div>
         )}
@@ -2370,8 +2546,15 @@ function Stap7({ bedrijf, segmenten, pijnpunten, combinaties, campagne, onBack, 
           {actieve > 0 && <Btn variant="outline" onClick={() => setActieve(actieve - 1)} small>← Vorige</Btn>}
         </div>
         {actieve < combs.length - 1 && <Btn onClick={() => setActieve(actieve + 1)} small>Volgende →</Btn>}
-        {actieve === combs.length - 1 && <Btn onClick={() => onNaarMeta()} small>Campagne opzetten in Meta →</Btn>}
+        {actieve === combs.length - 1 && !toonChecklist && (
+          <Btn onClick={() => setToonChecklist(true)} small>Pre-launch controle → Meta →</Btn>
+        )}
       </div>
+      {toonChecklist && (
+        <div style={{ marginTop: 20 }}>
+          <PreLaunchChecklist onDoorgaan={onNaarMeta} />
+        </div>
+      )}
     </div>
   );
 }
@@ -2740,7 +2923,7 @@ function Stap9({ bedrijf, csvData, onBack }) {
         + (bedrijf.aanbod ? " Aanbod: " + bedrijf.aanbod.substring(0, 100) + "." : "")
         + sectorCtx
         + " Data: " + data.substring(0, 2500)
-        + " Geef eerst een OWNER SUMMARY: 3 zinnen wat de ondernemer VANDAAG doet, niet doet, en eerst oplost. Dan voor elke campagne/advertentie: ---CAMPAGNE: [naam] BESLISSING: [STOP DIRECT of OPTIMALISEER of BLIJVEN LOPEN of OPSCHALEN] PRIORITEIT: [1=eerste, 2=daarna, 3=mag wachten] VERTROUWEN: [LAAG - te weinig data of MATIG - indicatief of STERK - betrouwbaar] REDEN: [1 zin] ACTIE: [1 concrete stap] --- Sluit af met ===BUDGET GUARDIAN [max 3 punten] ===CREATIEVE FATIGUE [signalen + nieuwe hook suggestie] ===DAGELIJKSE SAMENVATTING [zelfde als OWNER SUMMARY maar uitgebreider]. Nederlands, geen jargon.";
+        + " Geef eerst een OWNER SUMMARY in 3 genummerde punten: 1) wat de ondernemer VANDAAG eerst doet 2) wat hij laat staan 3) wat hij als eerste oplost. Gebruik het format: 1. [actie] 2. [niet doen] 3. [eerst oplossen]. Dan voor elke campagne/advertentie: ---CAMPAGNE: [naam] BESLISSING: [STOP DIRECT of OPTIMALISEER of BLIJVEN LOPEN of OPSCHALEN] PRIORITEIT: [1=eerste, 2=daarna, 3=mag wachten] VERTROUWEN: [LAAG - te weinig data of MATIG - indicatief of STERK - betrouwbaar] REDEN: [1 zin] ACTIE: [1 concrete stap] --- Sluit af met ===BUDGET GUARDIAN [max 3 punten] ===CREATIEVE FATIGUE Geef: SIGNALEN: [komma-gescheiden: bijv. CTR daalt, frequentie stijgt, CPC stijgt] DIAGNOSE: [1 zin oorzaak] NIEUWE HOOK: [1 concrete nieuwe invalshoek om te testen] ===DAGELIJKSE SAMENVATTING [zelfde als OWNER SUMMARY maar uitgebreider]. Nederlands, geen jargon.";
 
       const raw = await callClaude(
         "Je bent een eerlijke Meta Ads coach voor kleine ondernemers. Geef scherpe, bruikbare adviezen.",
@@ -2900,9 +3083,9 @@ function Stap9({ bedrijf, csvData, onBack }) {
                     {blok.vertrouwen==="STERK" ? "✓ Betrouwbaar" : blok.vertrouwen==="MATIG" ? "~ Indicatief" : "⚠ Weinig data"}
                   </span>
                 )}
-                <div style={{ display:"flex", alignItems:"center", gap:6, background:"white", borderRadius:7, padding:"4px 10px", border:`1px solid ${kl.brd}` }}>
-                  <div style={{ width:10, height:10, borderRadius:"50%", background:kl.dot, flexShrink:0 }} />
-                  <span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:kl.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl.icoon} {kl.label}</span>
+                <div style={{ display:"flex", alignItems:"center", gap:7, background:kl.bg, border:`2px solid ${kl.dot}`, borderRadius:20, padding:"5px 14px" }}>
+                  <div style={{ width:14, height:14, borderRadius:"50%", background:kl.dot, flexShrink:0, boxShadow:`0 0 0 3px ${kl.dot}33` }} />
+                  <span style={{ fontFamily:font.body, fontWeight:800, fontSize:12, color:kl.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl.icoon} {kl.label}</span>
                 </div>
               </div>
             </div>
@@ -2933,7 +3116,23 @@ function Stap9({ bedrijf, csvData, onBack }) {
               <span style={{ fontSize:18 }}>🎯</span>
               <span style={{ fontFamily:font.display, fontWeight:700, fontSize:14, color:"#FFFFFF", textTransform:"uppercase", letterSpacing:"1.5px" }}>Wat doe je vandaag?</span>
             </div>
-            <div style={{ fontFamily:font.body, fontSize:14, color:"rgba(255,255,255,.92)", lineHeight:1.8 }}>{ownerSummary}</div>
+            <div>
+              {ownerSummary.split("\n").filter(p => p.trim()).map((p, i) => (
+                <div key={i} style={{
+                  fontFamily:font.body, fontSize:14, color:"rgba(255,255,255,.95)", lineHeight:1.8,
+                  marginBottom: i < ownerSummary.split("\n").filter(p2=>p2.trim()).length - 1 ? 10 : 0,
+                  paddingLeft: p.trim().match(/^[1-9][\.\)]|^[-•]/) ? 0 : 0,
+                  display:"flex", gap: 8, alignItems:"flex-start",
+                }}>
+                  {p.trim().match(/^[1-9][\.\)]/) && (
+                    <span style={{ background:"rgba(255,255,255,.25)", borderRadius:"50%", width:22, height:22, display:"inline-flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, flexShrink:0, marginTop:2 }}>
+                      {p.trim()[0]}
+                    </span>
+                  )}
+                  <span>{p.trim().replace(/^[1-9][\.\)]\s*/, "").replace(/^[-•]\s*/, "")}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -2944,11 +3143,70 @@ function Stap9({ bedrijf, csvData, onBack }) {
           {campagnes.map((blok, i) => <CampagneKaart key={i} blok={blok} idx={i} />)}
         </>}
         {guardian && <><SectieTitel icoon="🛡️" label="Budget Guardian" kleur="#b05000" /><div style={{ background:"#fff8f0", border:"1px solid #f0d0a0", borderRadius:10, padding:"12px 16px", fontFamily:font.body, fontSize:13, color:"#5a3000", lineHeight:1.75, whiteSpace:"pre-wrap" }}>{guardian}</div></>}
-        {fatigue && <><SectieTitel icoon="⚡" label="Creatieve Fatigue" kleur={C.goudDim} /><div style={{ background:C.goudLight, border:`1px solid ${C.borderGold}`, borderRadius:10, padding:"12px 16px", fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.75, whiteSpace:"pre-wrap" }}>{fatigue}</div></>}
-        {samenvatting && <><SectieTitel icoon="📋" label="Dagelijkse Samenvatting" kleur={C.navy} /><div style={{ background:C.bgMid, border:`1px solid ${C.border}`, borderRadius:10, padding:"14px 18px", fontFamily:font.body, fontSize:14, color:C.navy, lineHeight:1.8, fontStyle:"italic" }}>{samenvatting}</div></>}
+        {fatigue && (
+          <>
+            <SectieTitel icoon="⚡" label="Creatieve Fatigue Radar" kleur="#8A5A00" />
+            <div style={{ background:"#FFFAF0", border:"1.5px solid #E8C000", borderRadius:12, overflow:"hidden" }}>
+              {/* Parse SIGNALEN uit de fatigue tekst */}
+              {(() => {
+                const sep = String.fromCharCode(10);
+                const fatigueLines = fatigue.split(sep);
+                const findLine = (pfx) => fatigueLines.find(l => l.trim().toUpperCase().startsWith(pfx.toUpperCase()));
+                const extractVal = (line) => line ? line.replace(/^[^:]+:\s*/i, "").trim() : "";
+                const signaalLine = findLine("SIGNALEN:");
+                const diagnoseMatch = findLine("DIAGNOSE:");
+                const hookMatch = findLine("NIEUWE HOOK:");
+                const signalen = signaalLine ? extractVal(signaalLine).split(",").map(s => s.trim()).filter(Boolean) : [];
+                const diagnose = extractVal(diagnoseMatch);
+                const nieuweHook = extractVal(hookMatch);
+                const signaalIcoon = (s) => {
+                  const sl = s.toLowerCase();
+                  if (sl.includes("ctr")) return { icoon:"📉", kleur:"#CC2200" };
+                  if (sl.includes("frequentie")) return { icoon:"🔁", kleur:"#E08000" };
+                  if (sl.includes("cpc")) return { icoon:"💸", kleur:"#CC2200" };
+                  return { icoon:"⚠️", kleur:"#8A6200" };
+                };
+                return (
+                  <div>
+                    {signalen.length > 0 ? (
+                      <div style={{ padding:"14px 18px", borderBottom:"1px solid #E8D080" }}>
+                        <div style={{ fontFamily:font.body, fontSize:11, color:"#8A6200", textTransform:"uppercase", letterSpacing:"1px", marginBottom:10 }}>Fatigue-signalen</div>
+                        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                          {signalen.map((s, i) => {
+                            const si = signaalIcoon(s);
+                            return <span key={i} style={{ display:"flex", alignItems:"center", gap:5, background:"white", border:`1.5px solid ${si.kleur}44`, borderRadius:8, padding:"5px 12px", fontFamily:font.body, fontSize:12, color:si.kleur, fontWeight:600 }}>{si.icoon} {s}</span>;
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ padding:"14px 18px", borderBottom:"1px solid #E8D080", fontFamily:font.body, fontSize:13, color:"#5A4000", lineHeight:1.7, whiteSpace:"pre-wrap" }}>{fatigue}</div>
+                    )}
+                    {diagnose && <div style={{ padding:"12px 18px", borderBottom:"1px solid #E8D080" }}><span style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:"#8A6200", textTransform:"uppercase", letterSpacing:"1px" }}>Diagnose</span><span style={{ fontFamily:font.body, fontSize:13, color:"#5A4000", lineHeight:1.6, marginLeft:8 }}>{diagnose}</span></div>}
+                    {nieuweHook && (
+                      <div style={{ padding:"12px 18px", background:"#FFF8E0", display:"flex", gap:10, alignItems:"flex-start" }}>
+                        <span style={{ fontSize:18, flexShrink:0 }}>🧪</span>
+                        <div>
+                          <div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:"#8A6200", textTransform:"uppercase", letterSpacing:"1px", marginBottom:4 }}>Nieuwe hook om te testen</div>
+                          <div style={{ fontFamily:font.body, fontSize:13, color:"#5A4000", lineHeight:1.6, fontStyle:"italic" }}>{nieuweHook}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </>
+        )}
+        {samenvatting && (
+          <>
+            <SectieTitel icoon="📋" label="Dagelijkse Samenvatting" kleur={C.navy} />
+            <div style={{ background:C.bgMid, border:`1px solid ${C.border}`, borderRadius:10, padding:"14px 18px", fontFamily:font.body, fontSize:14, color:C.navy, lineHeight:1.8, fontStyle:"italic" }}>{samenvatting}</div>
+          </>
+        )}
       </div>
     );
   };
+
   // Next-best test generator
   const [tests, setTests] = useState(null);
   const [loadingTests, setLoadingTests] = useState(false);
@@ -2959,11 +3217,11 @@ function Stap9({ bedrijf, csvData, onBack }) {
     try {
       const prompt = "Genereer 4 concrete A/B-testvoorstellen voor Meta Ads campagnes van " + bedrijf.naam
         + (bedrijf.aanbod ? " (aanbod: " + bedrijf.aanbod.substring(0,100) + ")" : "")
-        + (data ? ". Campagnedata:\n" + data.substring(0, 1500) : "")
-        + "\n\nPer test:\n- TYPE: Headline / Hook / Visual / CTA / Doelgroep\n- HYPOTHESE: wat verwacht je\n- VERWACHT EFFECT: concreet % of richting\n- RISICO: Laag/Middel/Hoog\n- PRIORITEIT: 1-4\n- HOE: 1 concrete implementatiestap"
-        + "\n\nSchrijf in het Nederlands. Wees concreet en bruikbaar voor een zelfstandige.";
-      const raw = await callClaude("Je bent een Meta Ads teststrateeg. Geef 4 concrete testvoorstellen.", prompt, 900);
-      setTests(raw);
+        + (data ? ". Campagnedata: " + data.substring(0, 1200) : "")
+        + ". Geef output als JSON array van 4 objecten, elk met: type (Headline/Hook/Visual/CTA/Doelgroep), hypothese (wat verwacht je), verwachtEffect (concreet), risico (Laag/Middel/Hoog), prioriteit (1-4, 1=hoogste), hoe (1 concrete implementatiestap), implementatiegemak (Eenvoudig/Gemiddeld/Complex). Alleen de JSON array, geen uitleg.";
+      const raw = await callClaude("Je bent Meta Ads teststrateeg. Geef output ALLEEN als JSON array van 4 objecten.", prompt, 900);
+      const parsed = parseJsonSafe(raw, null);
+      setTests(parsed && Array.isArray(parsed) ? parsed : raw);
     } catch(e) {
       setTests("Fout bij genereren: " + (e.message || "").substring(0, 80));
     }
@@ -2996,8 +3254,8 @@ function Stap9({ bedrijf, csvData, onBack }) {
           </div>
         </div>
         {playbook && (
-          <div style={{ marginTop:10, background:C.goudLight, border:`1px solid ${C.borderGold}`, borderRadius:10, padding:"8px 14px", display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
-            <span style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.goud, textTransform:"uppercase", letterSpacing:"1px" }}>Sector playbook</span>
+          <div style={{ marginTop:10, background:C.groenLight, border:`1px solid ${C.borderGreen}`, borderRadius:10, padding:"8px 14px", display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+            <span style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.groen, textTransform:"uppercase", letterSpacing:"1px" }}>Sector playbook</span>
             <span style={{ fontFamily:font.body, fontSize:12, color:C.textSoft }}>{playbook.label}</span>
             <span style={{ fontFamily:font.body, fontSize:11, color:C.muted }}>Typische CPL: {playbook.typisch_cpl} · CTR: {playbook.typisch_ctr}</span>
           </div>
@@ -3006,7 +3264,7 @@ function Stap9({ bedrijf, csvData, onBack }) {
 
       {/* Data invoer */}
       <div style={{ background:C.card, borderRadius:14, border:`1px solid ${C.border}`, padding:"22px 26px", boxShadow:C.shadow, marginBottom:14 }}>
-        <div style={{ fontFamily:font.display, fontWeight:700, fontSize:15, color:C.text, marginBottom:14 }}>📥 Campagnedata</div>
+        <div style={{ fontFamily:font.display, fontWeight:700, fontSize:15, color:C.text, marginBottom:14 }}>📥 Campagnedata invoeren</div>
         {csvData ? (
           <div style={{ background:"#f0fff0", border:"1.5px solid #80cc80", borderRadius:10, padding:"12px 16px", marginBottom:12, display:"flex", alignItems:"center", gap:10 }}>
             <span>✅</span>
@@ -3016,8 +3274,8 @@ function Stap9({ bedrijf, csvData, onBack }) {
             </div>
           </div>
         ) : (
-          <div style={{ background:C.goudLight, border:`1.5px dashed ${C.borderGold}`, borderRadius:10, padding:"12px 16px", marginBottom:12 }}>
-            <div style={{ fontFamily:font.body, fontWeight:700, fontSize:13, color:C.goud, marginBottom:3 }}>📂 Geen CSV geladen vanuit stap 2</div>
+          <div style={{ background:C.groenLight, border:`1.5px dashed ${C.borderGreen}`, borderRadius:10, padding:"12px 16px", marginBottom:12 }}>
+            <div style={{ fontFamily:font.body, fontWeight:700, fontSize:13, color:C.groen, marginBottom:3 }}>📂 Geen CSV geladen vanuit stap 2</div>
             <div style={{ fontSize:11, color:C.muted, fontFamily:font.body }}>Ga terug naar stap 2 voor CSV-upload, of plak data hieronder.</div>
           </div>
         )}
@@ -3025,15 +3283,14 @@ function Stap9({ bedrijf, csvData, onBack }) {
           value={handmatig}
           onChange={e => setHandmatig(e.target.value)}
           rows={6}
-          placeholder={"Campagnenaam | Budget | Bereik | Klikken | CTR | CPC | Kosten | Conversies\n\nBv:\nZonnepanelen-lead | €500 | 12.400 | 960 | 2% | €0,52 | €499 | 8"}
+          placeholder={"Campagnenaam | Budget | Bereik | Klikken | CTR | CPC | Kosten | Conversies\n\nBv:\nZonnepanelen-lead | \u20ac500 | 12.400 | 960 | 2% | \u20ac0,52 | \u20ac499 | 8"}
           style={{ width:"100%", boxSizing:"border-box", padding:"10px 12px", borderRadius:10, border:`1px solid ${C.border}`, fontFamily:"monospace", fontSize:12, background:"#fafaf8", color:C.text, resize:"vertical" }}
         />
         {fout && <div style={{ color:"#cc2200", fontSize:13, fontFamily:font.body, marginTop:8 }}>{fout}</div>}
 
-        {/* Tracking Health Check */}
         {trackingSignalen.length > 0 && (
           <div style={{ marginTop:12 }}>
-            <div style={{ fontFamily:font.body, fontWeight:700, fontSize:12, color:C.goudDim, textTransform:"uppercase", letterSpacing:"1px", marginBottom:8 }}>🔍 Tracking Health Check</div>
+            <div style={{ fontFamily:font.body, fontWeight:700, fontSize:12, color:C.groenDim, textTransform:"uppercase", letterSpacing:"1px", marginBottom:8 }}>🔍 Tracking Health Check</div>
             {trackingSignalen.map((s, i) => <SignaalBadge key={i} signaal={s} />)}
           </div>
         )}
@@ -3053,7 +3310,6 @@ function Stap9({ bedrijf, csvData, onBack }) {
         </div>
       </div>
 
-      {/* Tabs: Evaluatie / Tests / Samenvatting */}
       {resultaat && (
         <div style={{ marginBottom:14 }}>
           <div style={{ display:"flex", gap:4, marginBottom:14, background:C.bgMid, borderRadius:12, padding:4 }}>
@@ -3080,32 +3336,71 @@ function Stap9({ bedrijf, csvData, onBack }) {
 
           {actieTab === "tests" && (
             <div style={{ background:C.card, borderRadius:14, border:`1px solid ${C.border}`, padding:"22px 26px", boxShadow:C.shadow }}>
-              <div style={{ fontFamily:font.body, fontWeight:700, fontSize:13, color:C.goud, textTransform:"uppercase", letterSpacing:"1px", marginBottom:12 }}>🧪 Next-best Test Voorstellen</div>
+              <div style={{ fontFamily:font.body, fontWeight:700, fontSize:13, color:C.groen, textTransform:"uppercase", letterSpacing:"1px", marginBottom:12 }}>🧪 Next-best Test Voorstellen</div>
               {!tests && !loadingTests && (
                 <div>
                   <p style={{ fontFamily:font.body, fontSize:13, color:C.muted, marginBottom:14, lineHeight:1.7 }}>
-                    Genereer concrete A/B-testvoorstellen op basis van je campagnedata: welke headlines, hooks, visuals of doelgroepen testen?
+                    Genereer 4 concrete A/B-testvoorstellen op basis van je campagnedata. Gesorteerd op prioriteit, met hypothese, verwacht effect en implementatiestap.
                   </p>
-                  <button onClick={genereerTests} style={{ background:C.groen, border:"none", borderRadius:10, padding:"10px 22px", color:"#FFFFFF", fontFamily:font.body, fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                  <button onClick={genereerTests} style={{ background:C.groen, border:"none", borderRadius:10, padding:"10px 22px", color:"#FFFFFF", fontFamily:font.body, fontWeight:600, fontSize:13, cursor:"pointer" }}>
                     Genereer testvoorstellen →
                   </button>
                 </div>
               )}
-              {loadingTests && <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <span style={{ width:16, height:16, border:`2px solid ${C.border}`, borderTop:`2px solid ${C.goud}`, borderRadius:"50%", animation:"spin 1s linear infinite", display:"inline-block" }} />
-                <span style={{ fontFamily:font.body, fontSize:13, color:C.muted }}>Testvoorstellen genereren…</span>
-              </div>}
+              {loadingTests && <Loader text="Testvoorstellen genereren" />}
               {tests && !loadingTests && (
-                <div style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.75, whiteSpace:"pre-wrap" }}>{tests}</div>
+                <div>
+                  {Array.isArray(tests) ? (
+                    <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                      {[...tests].sort((a,b)=>(a.prioriteit||2)-(b.prioriteit||2)).map((t, i) => {
+                        const risicoKl = t.risico==="Hoog" ? {bg:"#FFF0F0",brd:"#F0B0B0",txt:"#8A1A1A"} : t.risico==="Middel" ? {bg:"#FFF8E0",brd:"#E8D080",txt:"#8A6200"} : {bg:"#F0FFF0",brd:"#A0D0A0",txt:"#1A6B1A"};
+                        const gemakKl = t.implementatiegemak==="Complex" ? "#CC2200" : t.implementatiegemak==="Gemiddeld" ? "#E08000" : C.groen;
+                        const typeKleuren = { Headline:{bg:"#F0F0FF",c:"#3A2A8A"}, Hook:{bg:"#FFF0FF",c:"#7A2A8A"}, Visual:{bg:"#F0FFF8",c:"#1A6B4A"}, CTA:{bg:"#FFF8F0",c:"#8A4A00"}, Doelgroep:{bg:"#F0F8FF",c:"#1A4A8A"} };
+                        const typKl = typeKleuren[t.type] || {bg:C.groenLight,c:C.groenDim};
+                        return (
+                          <div key={i} style={{ border:`1.5px solid ${C.border}`, borderRadius:12, overflow:"hidden" }}>
+                            <div style={{ background:C.bgMid, borderBottom:`1px solid ${C.border}`, padding:"10px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
+                              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                <span style={{ background: t.prioriteit===1 ? C.groen : C.border, color: t.prioriteit===1 ? "#fff" : C.muted, fontFamily:font.body, fontWeight:800, fontSize:11, padding:"2px 8px", borderRadius:4, minWidth:22, textAlign:"center" }}>#{t.prioriteit||i+1}</span>
+                                <span style={{ background:typKl.bg, color:typKl.c, fontFamily:font.body, fontWeight:700, fontSize:11, padding:"3px 10px", borderRadius:6, textTransform:"uppercase", letterSpacing:"1px" }}>{t.type}</span>
+                              </div>
+                              <div style={{ display:"flex", gap:6 }}>
+                                <span style={{ background:risicoKl.bg, border:`1px solid ${risicoKl.brd}`, color:risicoKl.txt, fontFamily:font.body, fontSize:11, fontWeight:600, padding:"2px 9px", borderRadius:4 }}>Risico: {t.risico}</span>
+                                <span style={{ fontFamily:font.body, fontSize:11, color:gemakKl, fontWeight:600, padding:"2px 9px", border:`1px solid ${gemakKl}44`, borderRadius:4 }}>{t.implementatiegemak}</span>
+                              </div>
+                            </div>
+                            <div style={{ padding:"14px 16px", background:"white" }}>
+                              <div style={{ marginBottom:10 }}>
+                                <div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:4 }}>Hypothese</div>
+                                <div style={{ fontFamily:font.body, fontSize:13, color:C.text, lineHeight:1.6 }}>{t.hypothese}</div>
+                              </div>
+                              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                <div style={{ background:C.bgMid, borderRadius:8, padding:"8px 12px" }}>
+                                  <div style={{ fontFamily:font.body, fontSize:10, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:3 }}>Verwacht effect</div>
+                                  <div style={{ fontFamily:font.body, fontSize:13, color:C.groen, fontWeight:600 }}>{t.verwachtEffect}</div>
+                                </div>
+                                <div style={{ background:C.groenLight, border:`1px solid ${C.borderGreen}`, borderRadius:8, padding:"8px 12px" }}>
+                                  <div style={{ fontFamily:font.body, fontSize:10, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:3 }}>Hoe uitvoeren</div>
+                                  <div style={{ fontFamily:font.body, fontSize:12, color:C.groenDim, lineHeight:1.5 }}>{t.hoe}</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.75, whiteSpace:"pre-wrap" }}>{String(tests)}</div>
+                  )}
+                </div>
               )}
             </div>
           )}
         </div>
       )}
 
-      {/* Footer knoppen */}
       <div style={{ marginTop:12, display:"flex", gap:12, flexWrap:"wrap", alignItems:"center" }}>
-        <button onClick={onBack} style={{ background:C.goudLight, border:`1px solid ${C.borderGold}`, borderRadius:10, padding:"10px 20px", color:C.goud, fontFamily:font.body, fontWeight:600, fontSize:13, cursor:"pointer" }}>
+        <button onClick={onBack} style={{ background:C.groenLight, border:`1px solid ${C.borderGreen}`, borderRadius:10, padding:"10px 20px", color:C.groen, fontFamily:font.body, fontWeight:600, fontSize:13, cursor:"pointer" }}>
           ← Terug naar Meta Setup
         </button>
         {resultaat && (
@@ -3131,7 +3426,7 @@ export default function App() {
   const [campagne, setCampagne] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
   const [stap8Open, setStap8Open] = useState(false);
-  const [csvData, setCsvData] = useState(""); // CSV uit stap 2 hergebruikt in stap 9
+  const [csvData, setCsvData] = useState("");
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: font.body }}>
@@ -3148,25 +3443,15 @@ export default function App() {
         ::-webkit-scrollbar-thumb:hover { background: ${C.groen}; }
       `}</style>
 
-      {/* Help Drawer */}
       <HelpDrawer stap={stap} bedrijf={bedrijf} open={helpOpen} onClose={() => setHelpOpen(false)} />
-
-      {/* API Key Banner */}
       <ApiKeyBanner />
 
-
-      {/* Header */}
       <div style={{ background: "#2C6E49", borderBottom: "1px solid #1D4D33", padding: "0 28px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 4px 24px rgba(30,42,35,.3)" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 9,
-              background: "rgba(255,255,255,.2)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 16, boxShadow: "none", color: "#FFFFFF", fontWeight: 800, border: "1.5px solid rgba(255,255,255,.3)",
-            }}>✦</div>
+            <div style={{ width: 36, height: 36, borderRadius: 9, background: "rgba(255,255,255,.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#FFFFFF", fontWeight: 800, border: "1.5px solid rgba(255,255,255,.3)" }}>✦</div>
             <div>
-              <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 19, color: "#FFFFFF", lineHeight: 1, letterSpacing: ".5px", fontWeight: 700 }}>Meta Ads Co-pilot</div>
+              <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 19, color: "#FFFFFF", lineHeight: 1, letterSpacing: ".5px" }}>Meta Ads Co-pilot</div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,.75)", fontWeight: 600, letterSpacing: "2.5px", textTransform: "uppercase" }}>Jouw Meta Ads Co-pilot</div>
             </div>
           </div>
@@ -3180,7 +3465,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Content */}
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 80px" }}>
         <ProgressBar stap={stap} />
         {stap === 1 && <Stap1 data={bedrijf} setData={setBedrijf} onNext={() => setStap(2)} onHelp={() => setHelpOpen(true)} />}
@@ -3194,38 +3478,14 @@ export default function App() {
         {stap === 9 && <Stap9 bedrijf={bedrijf} csvData={csvData} onBack={() => setStap(8)} />}
       </div>
 
-            {/* ── Verdify footer logo ── */}
-      <div style={{
-        borderTop: `1px solid ${C.border}`,
-        background: C.bgMid,
-        padding: "24px 40px",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        gap: 24,
-      }}>
-        <div style={{
-          background: "#ffffff",
-          borderRadius: 10,
-          padding: "6px 10px",
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 2px 12px rgba(0,0,0,.4)",
-          flexShrink: 0,
-        }}>
-          <img
-            src={VERDIFY_LOGO}
-            alt="Verdify"
-            style={{ height: 64, width: "auto", objectFit: "contain", display: "block" }}
-          />
+      <div style={{ borderTop: `1px solid ${C.border}`, background: C.bgMid, padding: "24px 40px", display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
+        <div style={{ background: "#ffffff", borderRadius: 10, padding: "6px 10px", display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px rgba(0,0,0,.4)", flexShrink: 0 }}>
+          <img src={VERDIFY_LOGO} alt="Verdify" style={{ height: 56, width: "auto", objectFit: "contain", display: "block" }} />
         </div>
         <div>
-          <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 20, color: C.groen, letterSpacing: ".3px", marginBottom: 4, lineHeight: 1 }}>
-            Meta Ads Co-pilot
-          </div>
-          <div style={{ fontSize: 11, color: C.muted, fontFamily: font.body, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 3 }}>
-            AI-aangedreven campagne builder
-          </div>
-          <div style={{ fontSize: 11, color: C.muted, fontFamily: font.body, letterSpacing: ".5px" }}>
-            Powered by Verdify · verdify.eu
-          </div>
+          <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 20, color: C.groen, letterSpacing: ".3px", marginBottom: 4, lineHeight: 1 }}>Meta Ads Co-pilot</div>
+          <div style={{ fontSize: 11, color: C.muted, fontFamily: font.body, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 3 }}>AI-aangedreven campagne builder</div>
+          <div style={{ fontSize: 11, color: C.muted, fontFamily: font.body, letterSpacing: ".5px" }}>Powered by Verdify · verdify.eu</div>
         </div>
       </div>
     </div>
