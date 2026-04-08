@@ -3041,143 +3041,153 @@ function Stap9({ bedrijf, csvData, onBack, onTrialVoltooid }) {
     const datum = new Date().toLocaleDateString("nl-BE", { day: "2-digit", month: "2-digit", year: "numeric" });
     const blokken = parseerEvaluatie(resultaat || "");
 
-    // Build campagne cards HTML
-    const beslissingsKleur = (b) => b==="STOP DIRECT"?"#CC2200":b==="OPTIMALISEER"?"#E08000":b==="OPSCHALEN"?"#1a3a8a":"#1a6b1a";
-    const beslissingsBg = (b) => b==="STOP DIRECT"?"#FFF0F0":b==="OPTIMALISEER"?"#FFF8E0":b==="OPSCHALEN"?"#EEF2FF":"#F0FFF0";
-    const beslissingsIcoon = (b) => b==="STOP DIRECT"?"🔴":b==="OPTIMALISEER"?"🟡":b==="OPSCHALEN"?"🚀":"🟢";
+    // Kleur helpers
+    const klMap = {
+      "STOP DIRECT":   { kl:"#CC2200", bg:"#FFF0F0", brd:"#F0B0B0", ic:"🔴" },
+      "OPTIMALISEER":  { kl:"#E08000", bg:"#FFF8E8", brd:"#F0D080", ic:"🟡" },
+      "BLIJVEN LOPEN": { kl:"#1A7A1A", bg:"#F0FFF0", brd:"#90D090", ic:"🟢" },
+      "OPSCHALEN":     { kl:"#1A3A9A", bg:"#F0F4FF", brd:"#90A8E8", ic:"🚀" },
+    };
+    const esc = (s) => (s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
-    const ownerHtml = blokken.ownerSummary ? `
-      <div style="background:#1A4A30;border-radius:12px;margin-bottom:28px;overflow:hidden;">
-        <div style="background:#2C6E49;padding:12px 20px;display:flex;align-items:center;gap:10px;">
-          <span style="font-size:18px;">🎯</span>
-          <span style="font-weight:700;font-size:13px;color:#fff;text-transform:uppercase;letter-spacing:2px;">Wat doe je vandaag?</span>
-        </div>
-        <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;">
-          ${blokken.ownerSummary.replace(/([23])[.)]\s/g, String.fromCharCode(10)+"$1. ").split(String.fromCharCode(10)).map(p=>p.trim()).filter(p=>p.length>5).map((p,i)=>{
-            const m=p.match(/^([1-9])[.):]?\s*([\s\S]*)/);
-            const n=m?m[1]:String(i+1); const t=m?m[2]:p;
-            const cfg=[{n:"1",ic:"✅",lb:"Doe vandaag",kl:"#4ADE80"},{n:"2",ic:"🚫",lb:"Laat staan",kl:"#FCA5A5"},{n:"3",ic:"🔧",lb:"Los eerst op",kl:"#FCD34D"}].find(c=>c.n===n)||{ic:"·",lb:"",kl:"rgba(255,255,255,.6)"};
-            return `<div style="display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,.08);border-radius:8px;padding:10px 14px;border-left:3px solid ${cfg.kl};">
-              <span style="font-size:18px;flex-shrink:0;">${cfg.ic}</span>
-              <div><div style="font-weight:700;font-size:10px;color:${cfg.kl};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px;">${cfg.lb}</div>
-              <div style="font-size:13px;color:rgba(255,255,255,.9);line-height:1.7;">${t}</div></div></div>`;
-          }).join("")}
-        </div>
-      </div>` : "";
+    // ── OWNER SUMMARY ──
+    let ownerHtml = "";
+    if (blokken.ownerSummary) {
+      const nl = String.fromCharCode(10);
+      const punten = blokken.ownerSummary
+        .replace(/\s+([23])[.)]\s/g, nl + "$1. ")
+        .split(nl).map(p => p.trim()).filter(p => p.length > 4);
+      const puntCfg = [
+        { num:"1", ic:"✅", label:"Doe vandaag",  kleur:"#4ADE80" },
+        { num:"2", ic:"🚫", label:"Laat staan",   kleur:"#FCA5A5" },
+        { num:"3", ic:"🔧", label:"Los eerst op", kleur:"#FCD34D" },
+      ];
+      let pHtml = "";
+      punten.forEach((p, i) => {
+        const m = p.match(/^([1-9])[.):\s]/);
+        const num = m ? m[1] : String(i + 1);
+        const txt = p.replace(/^[1-9][.):\s]+/, "").trim();
+        const cfg = puntCfg.find(c => c.num === num) || puntCfg[Math.min(i, 2)];
+        pHtml += "<div style='display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.1);border-radius:10px;padding:12px 16px;border-left:3px solid " + cfg.kleur + ";margin-bottom:10px;'>"
+          + "<span style='font-size:20px;flex-shrink:0;line-height:1.2;'>" + cfg.ic + "</span>"
+          + "<div><div style='font-family:Arial,sans-serif;font-weight:700;font-size:10px;color:" + cfg.kleur + ";text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;'>" + cfg.label + "</div>"
+          + "<div style='font-family:Arial,sans-serif;font-size:14px;color:rgba(255,255,255,.95);line-height:1.75;'>" + esc(txt) + "</div></div></div>";
+      });
+      ownerHtml = "<div style='border-radius:12px;margin-bottom:28px;overflow:hidden;'>"
+        + "<div style='background:#2C6E49;padding:13px 22px;display:flex;align-items:center;gap:10px;'>"
+        + "<span style='font-size:18px;'>🎯</span>"
+        + "<span style='font-family:Arial,sans-serif;font-weight:700;font-size:14px;color:#fff;text-transform:uppercase;letter-spacing:2px;'>Wat doe je vandaag?</span></div>"
+        + "<div style='background:#1A4A30;padding:16px 20px;'>" + pHtml + "</div></div>";
+    }
 
-    const campagnesHtml = blokken.campagnes.map(blok => {
-      const kl = beslissingsKleur(blok.beslissing);
-      const bg = beslissingsBg(blok.beslissing);
-      const ic = beslissingsIcoon(blok.beslissing);
-      const vertrTekst = blok.vertrouwen==="STERK" ? "✓ Voldoende data" : blok.vertrouwen==="MATIG" ? "~ Indicatief" : blok.vertrouwen==="LAAG" ? "⚠ Weinig data" : "";
-      const vertrKl = blok.vertrouwen==="STERK" ? "#2C6E49" : blok.vertrouwen==="MATIG" ? "#8A6200" : "#B03A2E";
-      return `<div style="border:2px solid ${kl};border-radius:12px;margin-bottom:22px;overflow:hidden;page-break-inside:avoid;box-shadow:0 2px 10px ${kl}20;">
-        <!-- Titel balk met bol + onderstreepte naam -->
-        <div style="background:${bg};padding:13px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border-bottom:1.5px solid ${kl}55;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:20px;height:20px;border-radius:50%;background:${kl};flex-shrink:0;box-shadow:0 0 0 5px ${kl}22;"></div>
-            <span style="font-weight:700;font-size:16px;color:#1E2A23;text-decoration:underline;text-decoration-color:${kl};text-underline-offset:4px;">${blok.naam||"Campagne"}</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:7px;background:white;border:2px solid ${kl};border-radius:20px;padding:5px 14px;">
-            <span style="font-size:15px;">${ic}</span>
-            <span style="font-weight:800;font-size:12px;color:${kl};text-transform:uppercase;letter-spacing:1.5px;">${blok.beslissing}</span>
-          </div>
-        </div>
-        <!-- Reden -->
-        ${blok.reden||blok.cijfers ? `<div style="padding:13px 20px;border-bottom:1px solid ${bg};background:white;">
-          <div style="font-size:10px;font-weight:700;color:#7A8A7E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Reden</div>
-          ${blok.reden ? `<div style="font-size:14px;color:#3D4E44;line-height:1.75;margin-bottom:${blok.cijfers?8:0}px;">${blok.reden}</div>` : ""}
-          ${blok.cijfers ? `<div style="display:inline-flex;align-items:center;gap:6px;background:${bg};border:1px solid ${kl}55;border-radius:7px;padding:4px 12px;font-family:monospace;font-weight:700;font-size:13px;color:${kl};">📊 ${blok.cijfers}</div>` : ""}
-        </div>` : ""}
-        <!-- Actie -->
-        ${blok.actie ? `<div style="padding:13px 20px;background:#EBF5EF;border-bottom:${vertrTekst?"1px solid #A8D4B8":"none"};display:flex;gap:12px;align-items:flex-start;">
-          <span style="font-weight:800;font-size:12px;color:#2C6E49;flex-shrink:0;text-transform:uppercase;letter-spacing:1px;">→ Actie</span>
-          <span style="font-size:14px;color:#1D4D33;font-weight:600;line-height:1.65;">${blok.actie}</span>
-        </div>` : ""}
-        <!-- Vertrouwen -->
-        ${vertrTekst ? `<div style="padding:6px 20px;display:flex;align-items:center;gap:6px;background:white;">
-          <span style="font-size:11px;color:${vertrKl};font-weight:700;">${vertrTekst}</span>
-          <span style="font-size:11px;color:#7A8A7E;">· datakwaliteit voor dit advies</span>
-        </div>` : ""}
-      </div>`;
-    }).join("");
+    // ── CAMPAGNES ──
+    let campHtml = "";
+    blokken.campagnes.forEach(blok => {
+      const m = klMap[blok.beslissing] || klMap["BLIJVEN LOPEN"];
+      const vertrTxt = blok.vertrouwen === "STERK" ? "✓ Voldoende data"
+        : blok.vertrouwen === "MATIG" ? "~ Indicatief"
+        : blok.vertrouwen === "LAAG"  ? "⚠ Weinig data" : "";
+      const vertrKl = blok.vertrouwen === "STERK" ? "#2C6E49"
+        : blok.vertrouwen === "MATIG" ? "#8A6200" : "#B03A2E";
 
-    const sectionHtml = (icoon, titel, inhoud, kleur, bg) => inhoud ? `
-      <div style="margin-top:24px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-          <span style="font-size:16px;">${icoon}</span>
-          <span style="font-weight:700;font-size:11px;color:${kleur};text-transform:uppercase;letter-spacing:1.5px;">${titel}</span>
-          <div style="flex:1;height:1px;background:${kleur}33;"></div>
-        </div>
-        <div style="background:${bg};border-radius:9px;padding:12px 16px;font-size:13px;color:#3D4E44;line-height:1.8;white-space:pre-wrap;">${inhoud}</div>
-      </div>` : "";
+      let body = "";
 
+      // Reden + cijfers
+      if (blok.reden || blok.cijfers) {
+        body += "<div style='padding:13px 20px;border-bottom:1px solid " + m.brd + ";background:white;'>"
+          + "<div style='font-family:Arial,sans-serif;font-size:10px;font-weight:700;color:#7A8A7E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;'>Reden</div>";
+        if (blok.reden) body += "<div style='font-family:Arial,sans-serif;font-size:14px;color:#3D4E44;line-height:1.75;" + (blok.cijfers ? "margin-bottom:8px;" : "") + "'>" + esc(blok.reden) + "</div>";
+        if (blok.cijfers) body += "<div style='display:inline-block;background:" + m.bg + ";border:1px solid " + m.brd + ";border-radius:7px;padding:4px 12px;font-family:monospace;font-weight:700;font-size:13px;color:" + m.kl + ";'>📊 " + esc(blok.cijfers) + "</div>";
+        body += "</div>";
+      }
+
+      // Actie
+      if (blok.actie) {
+        body += "<div style='padding:13px 20px;background:#EBF5EF;" + (vertrTxt ? "border-bottom:1px solid #A8D4B8;" : "") + "display:flex;gap:12px;align-items:flex-start;'>"
+          + "<span style='font-family:Arial,sans-serif;font-weight:800;font-size:12px;color:#2C6E49;flex-shrink:0;text-transform:uppercase;letter-spacing:1px;padding-top:1px;'>→ Actie</span>"
+          + "<span style='font-family:Arial,sans-serif;font-size:14px;color:#1D4D33;font-weight:600;line-height:1.65;'>" + esc(blok.actie) + "</span></div>";
+      }
+
+      // Vertrouwen
+      if (vertrTxt) {
+        body += "<div style='padding:6px 20px;background:white;display:flex;align-items:center;gap:6px;'>"
+          + "<span style='font-family:Arial,sans-serif;font-size:11px;color:" + vertrKl + ";font-weight:700;'>" + vertrTxt + "</span>"
+          + "<span style='font-family:Arial,sans-serif;font-size:11px;color:#7A8A7E;'>· datakwaliteit voor dit advies</span></div>";
+      }
+
+      campHtml += "<div style='border:2px solid " + m.kl + ";border-radius:12px;margin-bottom:22px;overflow:hidden;page-break-inside:avoid;'>"
+        // Titelbalk
+        + "<div style='background:" + m.bg + ";padding:13px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border-bottom:1.5px solid " + m.brd + ";'>"
+        + "<div style='display:flex;align-items:center;gap:10px;'>"
+        + "<div style='width:20px;height:20px;border-radius:50%;background:" + m.kl + ";flex-shrink:0;'></div>"
+        + "<span style='font-family:Arial,sans-serif;font-weight:700;font-size:16px;color:#1E2A23;text-decoration:underline;text-decoration-color:" + m.kl + ";text-underline-offset:4px;'>" + esc(blok.naam || "Campagne") + "</span></div>"
+        + "<div style='display:flex;align-items:center;gap:7px;background:white;border:2px solid " + m.kl + ";border-radius:20px;padding:5px 14px;'>"
+        + "<span style='font-size:15px;'>" + m.ic + "</span>"
+        + "<span style='font-family:Arial,sans-serif;font-weight:800;font-size:12px;color:" + m.kl + ";text-transform:uppercase;letter-spacing:1.5px;'>" + esc(blok.beslissing) + "</span></div></div>"
+        + body + "</div>";
+    });
+
+    // ── SECTIES ──
+    const sectieHtml = (ic, label, inhoud, kleur, bgKl) => {
+      if (!inhoud) return "";
+      return "<div style='margin-top:28px;'>"
+        + "<div style='display:flex;align-items:center;gap:10px;margin-bottom:12px;'>"
+        + "<span style='font-size:18px;'>" + ic + "</span>"
+        + "<span style='font-family:Arial,sans-serif;font-weight:800;font-size:12px;color:" + kleur + ";text-transform:uppercase;letter-spacing:1.5px;'>" + label + "</span>"
+        + "<div style='flex:1;height:1.5px;background:" + kleur + "33;margin-left:8px;'></div></div>"
+        + "<div style='background:" + bgKl + ";border:1.5px solid " + kleur + "44;border-radius:10px;padding:14px 18px;font-family:Arial,sans-serif;font-size:13px;color:#3D4E44;line-height:1.8;white-space:pre-wrap;'>" + esc(inhoud) + "</div></div>";
+    };
+
+    // ── PDF WINDOW ──
     const win = window.open("", "_blank");
-    win.document.write(`<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"/>
-<title>Campagne Evaluatie — ${bedrijf.naam}</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;color:#1E2A23;background:#F8F7F4;padding:0;max-width:860px;margin:0 auto;}
-@media print{body{background:#fff;max-width:100%;}.no-print{display:none}@page{margin:1.5cm}}
-</style></head><body>
+    win.document.write("<!DOCTYPE html><html lang='nl'><head><meta charset='UTF-8'/>"
+      + "<title>Campagne Evaluatie - " + esc(bedrijf.naam) + "</title>"
+      + "<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Arial,sans-serif;color:#1E2A23;background:#fff;max-width:860px;margin:0 auto;}"
+      + "@media print{body{max-width:100%;} @page{margin:1cm;} .noprint{display:none;}}</style></head><body>"
 
-<!-- HEADER -->
-<div style="background:#2C6E49;padding:18px 32px;display:flex;align-items:center;justify-content:space-between;">
-  <div style="display:flex;align-items:center;gap:14px;">
-    <div style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;font-weight:800;border:1.5px solid rgba(255,255,255,.3);">✦</div>
-    <div>
-      <div style="font-weight:700;font-size:18px;color:#FFFFFF;letter-spacing:.5px;">Meta Ads Co-pilot</div>
-      <div style="font-size:10px;color:rgba(255,255,255,.75);font-weight:600;letter-spacing:2.5px;text-transform:uppercase;">Campagne Evaluatie Rapport</div>
-    </div>
-  </div>
-  <div style="text-align:right;color:rgba(255,255,255,.85);font-size:12px;">
-    <div style="font-weight:600;">${bedrijf.naam}</div>
-    <div>${datum}</div>
-  </div>
-</div>
+      // Header
+      + "<div style='background:#2C6E49;padding:18px 32px;display:flex;align-items:center;justify-content:space-between;'>"
+      + "<div style='display:flex;align-items:center;gap:14px;'>"
+      + "<div style='width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;font-weight:800;border:1.5px solid rgba(255,255,255,.3);'>✦</div>"
+      + "<div><div style='font-family:Arial,sans-serif;font-weight:700;font-size:18px;color:#fff;letter-spacing:.5px;'>Meta Ads Co-pilot</div>"
+      + "<div style='font-size:10px;color:rgba(255,255,255,.75);font-weight:600;letter-spacing:2.5px;text-transform:uppercase;'>Campagne Evaluatie Rapport</div></div></div>"
+      + "<div style='text-align:right;color:rgba(255,255,255,.85);font-size:12px;'>"
+      + "<div style='font-weight:600;'>" + esc(bedrijf.naam) + "</div>"
+      + "<div>" + datum + "</div></div></div>"
 
-<!-- META INFO -->
-<div style="background:#EBF5EF;border-bottom:2px solid #2C6E49;padding:12px 32px;display:flex;gap:24px;flex-wrap:wrap;">
-  ${bedrijf.aanbod?`<span style="font-size:12px;color:#1D4D33;"><strong>Aanbod:</strong> ${bedrijf.aanbod.substring(0,80)}${bedrijf.aanbod.length>80?"…":""}</span>`:""}
-  ${playbook?`<span style="font-size:12px;color:#1D4D33;"><strong>Sector:</strong> ${playbook.label}</span><span style="font-size:12px;color:#1D4D33;"><strong>Typische CPL:</strong> ${playbook.typisch_cpl}</span>`:""}
-</div>
+      // Meta info balk
+      + "<div style='background:#EBF5EF;border-bottom:2px solid #2C6E49;padding:10px 32px;display:flex;gap:24px;flex-wrap:wrap;'>"
+      + (bedrijf.aanbod ? "<span style='font-size:12px;color:#1D4D33;'><strong>Aanbod:</strong> " + esc(bedrijf.aanbod.substring(0,80)) + (bedrijf.aanbod.length > 80 ? "…" : "") + "</span>" : "")
+      + (playbook ? "<span style='font-size:12px;color:#1D4D33;'><strong>Sector:</strong> " + esc(playbook.label) + "</span><span style='font-size:12px;color:#1D4D33;'><strong>Typische CPL:</strong> " + esc(playbook.typisch_cpl) + "</span>" : "")
+      + "</div>"
 
-<!-- CONTENT -->
-<div style="padding:28px 32px;background:#fff;min-height:600px;">
+      // Content
+      + "<div style='padding:28px 32px;background:#fff;'>"
+      + ownerHtml
+      + (blokken.campagnes.length > 0
+          ? "<div style='font-family:Arial,sans-serif;font-weight:700;font-size:11px;color:#7A8A7E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px;'>"
+            + "Evaluatie per campagne &nbsp;<span style='background:#EBF5EF;color:#2C6E49;font-size:10px;padding:2px 8px;border-radius:4px;'>" + blokken.campagnes.length + " campagnes</span></div>"
+            + campHtml
+          : "")
+      + sectieHtml("🛡️", "Budget Guardian", blokken.guardian, "#b05000", "#FFF8F0")
+      + sectieHtml("⚡", "Creatieve Fatigue", blokken.fatigue, "#8A5A00", "#FFFBEC")
+      + sectieHtml("📋", "Samenvatting", blokken.samenvatting, "#1E2A23", "#F0EDE7")
+      + "</div>"
 
-  ${ownerHtml}
+      // Footer
+      + "<div style='background:#F0EDE7;border-top:1px solid #DDD8CF;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;'>"
+      + "<div style='display:flex;align-items:center;gap:12px;'>"
+      + "<img src='" + VERDIFY_LOGO + "' alt='Verdify' style='height:40px;width:auto;object-fit:contain;background:white;border-radius:5px;padding:3px 7px;'/>"
+      + "<div><div style='font-family:Arial,sans-serif;font-weight:700;font-size:14px;color:#2C6E49;'>Meta Ads Co-pilot</div>"
+      + "<div style='font-size:11px;color:#7A8A7E;'>Powered by Verdify · verdify.eu</div>"
+      + "<div style='font-size:10px;color:#9A8A7E;'>Verdify is een merknaam van Ecofinity BV</div></div></div>"
+      + "<div style='font-size:11px;color:#7A8A7E;text-align:right;'>"
+      + "<div>Gegenereerd op " + datum + "</div><div style='margin-top:2px;'>Vertrouwelijk rapport</div></div></div>"
 
-  <div style="font-weight:700;font-size:11px;color:#7A8A7E;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
-    <span>Evaluatie per campagne</span>
-    <span style="background:#EBF5EF;color:#2C6E49;font-size:10px;padding:2px 8px;border-radius:4px;">${blokken.campagnes.length} campagnes</span>
-  </div>
-  ${campagnesHtml}
-  ${sectionHtml("🛡️","Budget Guardian",blokken.guardian,"#8A4A00","#FFF8F0")}
-  ${sectionHtml("⚡","Creatieve Fatigue",blokken.fatigue,"#8A6200","#FFFBEC")}
-  ${sectionHtml("📋","Samenvatting",blokken.samenvatting,"#1E2A23","#F0EDE7")}
-</div>
-
-<!-- FOOTER -->
-<div style="background:#F0EDE7;border-top:1px solid #DDD8CF;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;">
-  <div style="display:flex;align-items:center;gap:12px;">
-    <img src="${VERDIFY_LOGO}" alt="Verdify" style="height:40px;width:auto;object-fit:contain;" />
-    <div>
-      <div style="font-weight:700;font-size:14px;color:#2C6E49;">Meta Ads Co-pilot</div>
-      <div style="font-size:11px;color:#7A8A7E;">Powered by Verdify · verdify.eu</div>
-    </div>
-  </div>
-  <div style="font-size:11px;color:#7A8A7E;text-align:right;">
-    <div>Gegenereerd op ${datum}</div>
-    <div style="margin-top:2px;">Vertrouwelijk rapport</div>
-  </div>
-</div>
-
-<script>setTimeout(()=>window.print(),500);<\/script>
-</body></html>`);
+      + "<script>setTimeout(function(){window.print();},600);<\/script></body></html>");
     win.document.close();
   };
 
-  // Parse gestructureerde evaluatie-output
   const parseerEvaluatie = (tekst) => {
     if (!tekst) return { campagnes: [], guardian: "", fatigue: "", samenvatting: "" };
     const sep = String.fromCharCode(10);
