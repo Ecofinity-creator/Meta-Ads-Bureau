@@ -3264,6 +3264,44 @@ function Stap9({ bedrijf, csvData, onBack, onTrialVoltooid }) {
     }
     if (huidig) campagnes.push(huidig);
     flushSectie();
+    // RESCUE: als campagnes leeg is maar ownerSummary campagne-regels bevat,
+    // betekent dit dat de AI geen OWNER SUMMARY header gebruikte
+    // → herparse ownerSummary als campagne-tekst
+    if (campagnes.length === 0 && ownerSummary && ownerSummary.toUpperCase().includes("CAMPAGNE:")) {
+      const rescueTekst = ownerSummary;
+      ownerSummary = "";
+      // Herparse de rescue tekst
+      const rescueRegels = rescueTekst.split(sep);
+      for (const rr of rescueRegels) {
+        const rv = rr.trim().replace(/[*]{1,2}([^*]*)[*]{1,2}/g, "$1");
+        if (!rv) continue;
+        const ru = rv.toUpperCase();
+        const isC = rv.startsWith("---CAMPAGNE:") || rv.startsWith("--- CAMPAGNE:")
+          || (ru.startsWith("CAMPAGNE:") && !sectie)
+          || rv.startsWith("**CAMPAGNE:") || rv.startsWith("## CAMPAGNE:");
+        if (isC) {
+          if (huidig) campagnes.push(huidig);
+          huidig = { naam: rv.replace(/^[-*# ]*CAMPAGNE:\s*/i, "").trim(), beslissing: "", prioriteit: 2, vertrouwen: "", reden: "", cijfers: "", actie: "" };
+        } else if (huidig) {
+          if (rv.startsWith("BESLISSING:")) { const b = rv.replace("BESLISSING:", "").trim().toUpperCase(); huidig.beslissing = b.includes("STOP") ? "STOP DIRECT" : b.includes("OPTIMALISEER") ? "OPTIMALISEER" : b.includes("OPSCHALEN") ? "OPSCHALEN" : "BLIJVEN LOPEN"; }
+          else if (rv.startsWith("PRIORITEIT:")) { const p = rv.replace("PRIORITEIT:", "").trim(); huidig.prioriteit = p.startsWith("1") ? 1 : p.startsWith("3") ? 3 : 2; }
+          else if (rv.startsWith("VERTROUWEN:")) { const v = rv.replace("VERTROUWEN:", "").trim().toUpperCase(); huidig.vertrouwen = v.includes("STERK") ? "STERK" : v.includes("MATIG") ? "MATIG" : "LAAG"; }
+          else if (rv.startsWith("REDEN:")) { huidig.reden = rv.replace("REDEN:", "").trim(); }
+          else if (rv.startsWith("CIJFERS:")) { huidig.cijfers = rv.replace("CIJFERS:", "").trim(); }
+          else if (rv.startsWith("ACTIE:")) { huidig.actie = rv.replace("ACTIE:", "").trim(); }
+          else if (rv.trim() === "---") { campagnes.push(huidig); huidig = null; }
+        } else if (ru.includes("BUDGET GUARDIAN")) { sectie = "guardian"; }
+        else if (ru.includes("CREATIEVE FATIGUE")) { sectie = "fatigue"; }
+        else if (ru.includes("SAMENVATTING") || ru.includes("SUMMARY")) { sectie = "samenvatting"; }
+        else if (sectie) { sectieBuffer.push(rv); }
+      }
+      if (huidig) campagnes.push(huidig);
+      const fi = sectieBuffer.filter(r => r.trim()).join(sep).trim();
+      if (sectie === "guardian") guardian = fi;
+      else if (sectie === "fatigue") fatigue = fi;
+      else if (sectie === "samenvatting") samenvatting = fi;
+    }
+
     // Sort by prioriteit (1 eerst)
     campagnes.sort((a, b) => (a.prioriteit || 2) - (b.prioriteit || 2));
     return { campagnes, guardian, fatigue, samenvatting, ownerSummary };
@@ -3285,7 +3323,12 @@ function Stap9({ bedrijf, csvData, onBack, onTrialVoltooid }) {
       const nl = String.fromCharCode(10);
       const punten = ownerSummary
         .replace(/\s+([23])[.):]\s/g, nl + "$1. ")
-        .split(nl).map(p => p.trim()).filter(p => p.length > 4);
+        .split(nl)
+        .map(p => p.trim())
+        .filter(p => p.length > 4)
+        // Verwijder regels die er uitzien als campagne-data (parse fouten)
+        .filter(p => !p.toUpperCase().startsWith("CAMPAGNE:") && !p.toUpperCase().startsWith("BESLISSING:") && !p.toUpperCase().startsWith("PRIORITEIT:") && !p.toUpperCase().startsWith("VERTROUWEN:") && !p.toUpperCase().startsWith("REDEN:") && !p.toUpperCase().startsWith("ACTIE:") && !p.toUpperCase().startsWith("CIJFERS:") && !p.toUpperCase().startsWith("---"))
+        .slice(0, 3); // Max 3 punten
       const config = [
         { num:"1", icoon:"✅", label:"Doe vandaag", kleurBrd:"#4ADE80" },
         { num:"2", icoon:"🚫", label:"Laat staan",  kleurBrd:"#FCA5A5" },
@@ -3829,6 +3872,30 @@ export default function App() {
       )}
 
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 80px" }}>
+        {/* Trial geblokkeerd */}
+        {trialGebruikt && !trialActief && (
+          <div style={{ background:"#fff", borderRadius:16, border:`2px solid ${C.groen}`, padding:"48px 36px", textAlign:"center", marginTop:20, boxShadow:C.shadowMd }}>
+            <div style={{ fontSize:48, marginBottom:16 }}>🎉</div>
+            <h2 style={{ fontFamily:font.display, fontWeight:800, fontSize:28, color:C.text, marginBottom:12 }}>Je gratis proefrun is voltooid!</h2>
+            <p style={{ fontFamily:font.body, fontSize:16, color:C.muted, maxWidth:500, margin:"0 auto 28px", lineHeight:1.7 }}>
+              Je hebt de volledige Meta Ads Co-pilot ervaren. Upgrade nu voor onbeperkt gebruik en ontdek alles wat je mist.
+            </p>
+            <div style={{ display:"flex", gap:12, justifyContent:"center", flexWrap:"wrap", marginBottom:24 }}>
+              <a href="https://verdify.eu" target="_blank" rel="noopener" style={{ background:C.groen, color:"#fff", fontFamily:font.body, fontWeight:700, fontSize:15, padding:"14px 32px", borderRadius:10, textDecoration:"none", display:"inline-block" }}>
+                Upgrade naar volledig abonnement →
+              </a>
+              <button onClick={resetTrial} style={{ background:C.groenLight, border:`1px solid ${C.borderGreen}`, color:C.groen, fontFamily:font.body, fontWeight:600, fontSize:14, padding:"14px 24px", borderRadius:10, cursor:"pointer" }}>
+                ↺ Nog een keer proberen
+              </button>
+            </div>
+            <div style={{ fontFamily:font.body, fontSize:13, color:C.muted }}>
+              Vanaf €19/maand · Geen creditcard nodig om te starten
+            </div>
+          </div>
+        )}
+
+        {/* Normale app — alleen tonen als trial niet geblokkeerd */}
+        {(!trialGebruikt || trialActief) && <>
         <ProgressBar stap={stap} />
         {stap === 1 && <Stap1 data={bedrijf} setData={setBedrijf} onNext={() => setStap(2)} onHelp={() => setHelpOpen(true)} />}
         {stap === 2 && <Stap2 bedrijf={bedrijf} onCsvData={setCsvData} onNext={segs => { setSegmenten(segs); setStap(3); }} onHelp={() => setHelpOpen(true)} onBack={() => setStap(1)} />}
@@ -3839,6 +3906,7 @@ export default function App() {
         {stap === 7 && <Stap7 bedrijf={bedrijf} segmenten={segmenten} pijnpunten={pijnpunten} combinaties={combinaties} campagne={campagne} onBack={() => setStap(6)} onHelp={() => setHelpOpen(true)} onNaarMeta={() => setStap(8)} />}
         {stap === 8 && <Stap8 onBack={() => setStap(7)} onNaarEvaluatie={() => setStap(9)} />}
         {stap === 9 && <Stap9 bedrijf={bedrijf} csvData={csvData} onBack={() => setStap(8)} onTrialVoltooid={markeerTrialGebruikt} />}
+        </>}
       </div>
 
       <div style={{ borderTop: `1px solid ${C.border}`, background: C.bgMid, padding: "24px 40px", display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
