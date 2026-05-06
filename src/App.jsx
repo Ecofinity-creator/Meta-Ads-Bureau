@@ -2998,6 +2998,126 @@ function berekeningSignalen(rows) {
 
 // ─── STAP 9 — CAMPAGNE EVALUATIE (versterkt) ─────────────────────────────────
 
+// parseerEvaluatie — module scope zodat SnelleEvaluatie er ook bij kan
+const parseerEvaluatie = (tekst) => {
+    if (!tekst) return { campagnes: [], guardian: "", fatigue: "", samenvatting: "" };
+    const sep = String.fromCharCode(10);
+    const regels = tekst.split(sep);
+    const campagnes = [];
+    let huidig = null;
+    let guardian = "", fatigue = "", samenvatting = "", ownerSummary = "";
+    let sectie = null;
+    let sectieBuffer = [];
+    const flushSectie = () => {
+      const inhoud = sectieBuffer.filter(r => r.trim()).join(sep).trim();
+      if (sectie === "guardian") guardian = inhoud;
+      else if (sectie === "fatigue") fatigue = inhoud;
+      else if (sectie === "samenvatting") samenvatting = inhoud;
+      else if (sectie === "owner") ownerSummary = inhoud;
+      sectieBuffer = [];
+    };
+    for (const regel of regels) {
+      const r = regel.trim().replace(/[*]{1,2}([^*]*)[*]{1,2}/g, "$1");
+      if (!r) continue;
+      const up = r.toUpperCase();
+      const isCampagneLijn = r.startsWith("---CAMPAGNE:") || r.startsWith("--- CAMPAGNE:")
+        || (up.startsWith("CAMPAGNE:") && !sectie)
+        || (r.startsWith("**CAMPAGNE:") || r.startsWith("## CAMPAGNE:"));
+      if (isCampagneLijn) {
+        if (huidig) campagnes.push(huidig);
+        flushSectie(); sectie = null;
+        const naam = r.replace(/^[-*# ]*CAMPAGNE:\s*/i, "").trim();
+        huidig = { naam, beslissing: "", prioriteit: 2, vertrouwen: "", reden: "", cijfers: "", actie: "" };
+      } else if (r.trim() === "---") {
+        if (huidig) { campagnes.push(huidig); huidig = null; }
+      } else if (up.includes("OWNER SUMMARY") && !huidig) {
+        flushSectie(); sectie = "owner";
+      } else if (up.includes("===BUDGET GUARDIAN") || (up.startsWith("BUDGET GUARDIAN") && !huidig)) {
+        if (huidig) { campagnes.push(huidig); huidig = null; }
+        flushSectie(); sectie = "guardian";
+      } else if (up.includes("===CREATIEVE FATIGUE") || (up.startsWith("CREATIEVE FATIGUE") && !huidig)) {
+        flushSectie(); sectie = "fatigue";
+      } else if (up.includes("===DAGELIJKSE") || up.includes("===DAILY") || (up.startsWith("DAGELIJKSE SAMENVATTING") && !huidig)) {
+        flushSectie(); sectie = "samenvatting";
+      } else if (huidig) {
+        if (r.startsWith("BESLISSING:")) {
+          const b = r.replace("BESLISSING:", "").trim().toUpperCase();
+          huidig.beslissing = b.includes("STOP") ? "STOP DIRECT" : b.includes("OPTIMALISEER") ? "OPTIMALISEER" : b.includes("OPSCHALEN") ? "OPSCHALEN" : "BLIJVEN LOPEN";
+        } else if (r.startsWith("PRIORITEIT:")) {
+          const p = r.replace("PRIORITEIT:", "").trim();
+          huidig.prioriteit = p.startsWith("1") ? 1 : p.startsWith("3") ? 3 : 2;
+        } else if (r.startsWith("VERTROUWEN:")) {
+          const v = r.replace("VERTROUWEN:", "").trim().toUpperCase();
+          huidig.vertrouwen = v.includes("STERK") ? "STERK" : v.includes("MATIG") ? "MATIG" : "LAAG";
+        } else if (r.startsWith("REDEN:")) {
+          huidig.reden = r.replace("REDEN:", "").trim();
+        } else if (r.startsWith("CIJFERS:")) {
+          huidig.cijfers = r.replace("CIJFERS:", "").trim();
+        } else if (r.startsWith("ACTIE:")) {
+          huidig.actie = r.replace("ACTIE:", "").trim();
+        } else if (!huidig.beslissing) {
+          if (up.includes("STOP DIRECT") || up.includes("STOPPEN") || up.includes("PAUZEER")) huidig.beslissing = "STOP DIRECT";
+          else if (up.includes("OPTIMALISEER") || up.includes("BIJSTUREN") || up.includes("AANPASSEN")) huidig.beslissing = "OPTIMALISEER";
+          else if (up.includes("OPSCHALEN") || up.includes("SCHAAL OP") || up.includes("VERHOOG BUDGET")) huidig.beslissing = "OPSCHALEN";
+          else if (up.includes("BLIJVEN LOPEN") || up.includes("VERDER") || up.includes("LATEN LOPEN")) huidig.beslissing = "BLIJVEN LOPEN";
+          else if (r.startsWith("REDEN:") || r.startsWith("ACTIE:")) { /* skip */ }
+          else if (huidig.naam && !huidig.beslissing && r.length > 5) {
+            // Als er na de naam nog geen beslissing is, kijk in de tekst
+            const tekst = r.toLowerCase();
+            if (tekst.includes("stop") || tekst.includes("pauz")) huidig.beslissing = "STOP DIRECT";
+            else if (tekst.includes("optim") || tekst.includes("verbeter")) huidig.beslissing = "OPTIMALISEER";
+            else if (tekst.includes("schaal") || tekst.includes("verhoog")) huidig.beslissing = "OPSCHALEN";
+          }
+        }
+      } else if (sectie) {
+        sectieBuffer.push(r);
+      }
+    }
+    if (huidig) campagnes.push(huidig);
+    flushSectie();
+    // RESCUE: als campagnes leeg is maar ownerSummary campagne-regels bevat,
+    // betekent dit dat de AI geen OWNER SUMMARY header gebruikte
+    // → herparse ownerSummary als campagne-tekst
+    if (campagnes.length === 0 && ownerSummary && ownerSummary.toUpperCase().includes("CAMPAGNE:")) {
+      const rescueTekst = ownerSummary;
+      ownerSummary = "";
+      // Herparse de rescue tekst
+      const rescueRegels = rescueTekst.split(sep);
+      for (const rr of rescueRegels) {
+        const rv = rr.trim().replace(/[*]{1,2}([^*]*)[*]{1,2}/g, "$1");
+        if (!rv) continue;
+        const ru = rv.toUpperCase();
+        const isC = rv.startsWith("---CAMPAGNE:") || rv.startsWith("--- CAMPAGNE:")
+          || (ru.startsWith("CAMPAGNE:") && !sectie)
+          || rv.startsWith("**CAMPAGNE:") || rv.startsWith("## CAMPAGNE:");
+        if (isC) {
+          if (huidig) campagnes.push(huidig);
+          huidig = { naam: rv.replace(/^[-*# ]*CAMPAGNE:\s*/i, "").trim(), beslissing: "", prioriteit: 2, vertrouwen: "", reden: "", cijfers: "", actie: "" };
+        } else if (huidig) {
+          if (rv.startsWith("BESLISSING:")) { const b = rv.replace("BESLISSING:", "").trim().toUpperCase(); huidig.beslissing = b.includes("STOP") ? "STOP DIRECT" : b.includes("OPTIMALISEER") ? "OPTIMALISEER" : b.includes("OPSCHALEN") ? "OPSCHALEN" : "BLIJVEN LOPEN"; }
+          else if (rv.startsWith("PRIORITEIT:")) { const p = rv.replace("PRIORITEIT:", "").trim(); huidig.prioriteit = p.startsWith("1") ? 1 : p.startsWith("3") ? 3 : 2; }
+          else if (rv.startsWith("VERTROUWEN:")) { const v = rv.replace("VERTROUWEN:", "").trim().toUpperCase(); huidig.vertrouwen = v.includes("STERK") ? "STERK" : v.includes("MATIG") ? "MATIG" : "LAAG"; }
+          else if (rv.startsWith("REDEN:")) { huidig.reden = rv.replace("REDEN:", "").trim(); }
+          else if (rv.startsWith("CIJFERS:")) { huidig.cijfers = rv.replace("CIJFERS:", "").trim(); }
+          else if (rv.startsWith("ACTIE:")) { huidig.actie = rv.replace("ACTIE:", "").trim(); }
+          else if (rv.trim() === "---") { campagnes.push(huidig); huidig = null; }
+        } else if (ru.includes("BUDGET GUARDIAN")) { sectie = "guardian"; }
+        else if (ru.includes("CREATIEVE FATIGUE")) { sectie = "fatigue"; }
+        else if (ru.includes("SAMENVATTING") || ru.includes("SUMMARY")) { sectie = "samenvatting"; }
+        else if (sectie) { sectieBuffer.push(rv); }
+      }
+      if (huidig) campagnes.push(huidig);
+      const fi = sectieBuffer.filter(r => r.trim()).join(sep).trim();
+      if (sectie === "guardian") guardian = fi;
+      else if (sectie === "fatigue") fatigue = fi;
+      else if (sectie === "samenvatting") samenvatting = fi;
+    }
+
+    // Sort by prioriteit (1 eerst)
+    campagnes.sort((a, b) => (a.prioriteit || 2) - (b.prioriteit || 2));
+    return { campagnes, guardian, fatigue, samenvatting, ownerSummary };
+  };
+
 function Stap9({ bedrijf, csvData, onBack, onTrialVoltooid }) {
   const [handmatig, setHandmatig] = useState(csvData || "");
   const [loading, setLoading] = useState(false);
@@ -3201,124 +3321,7 @@ function Stap9({ bedrijf, csvData, onBack, onTrialVoltooid }) {
     win.document.close();
   };
 
-  const parseerEvaluatie = (tekst) => {
-    if (!tekst) return { campagnes: [], guardian: "", fatigue: "", samenvatting: "" };
-    const sep = String.fromCharCode(10);
-    const regels = tekst.split(sep);
-    const campagnes = [];
-    let huidig = null;
-    let guardian = "", fatigue = "", samenvatting = "", ownerSummary = "";
-    let sectie = null;
-    let sectieBuffer = [];
-    const flushSectie = () => {
-      const inhoud = sectieBuffer.filter(r => r.trim()).join(sep).trim();
-      if (sectie === "guardian") guardian = inhoud;
-      else if (sectie === "fatigue") fatigue = inhoud;
-      else if (sectie === "samenvatting") samenvatting = inhoud;
-      else if (sectie === "owner") ownerSummary = inhoud;
-      sectieBuffer = [];
-    };
-    for (const regel of regels) {
-      const r = regel.trim().replace(/[*]{1,2}([^*]*)[*]{1,2}/g, "$1");
-      if (!r) continue;
-      const up = r.toUpperCase();
-      const isCampagneLijn = r.startsWith("---CAMPAGNE:") || r.startsWith("--- CAMPAGNE:")
-        || (up.startsWith("CAMPAGNE:") && !sectie)
-        || (r.startsWith("**CAMPAGNE:") || r.startsWith("## CAMPAGNE:"));
-      if (isCampagneLijn) {
-        if (huidig) campagnes.push(huidig);
-        flushSectie(); sectie = null;
-        const naam = r.replace(/^[-*# ]*CAMPAGNE:\s*/i, "").trim();
-        huidig = { naam, beslissing: "", prioriteit: 2, vertrouwen: "", reden: "", cijfers: "", actie: "" };
-      } else if (r.trim() === "---") {
-        if (huidig) { campagnes.push(huidig); huidig = null; }
-      } else if (up.includes("OWNER SUMMARY") && !huidig) {
-        flushSectie(); sectie = "owner";
-      } else if (up.includes("===BUDGET GUARDIAN") || (up.startsWith("BUDGET GUARDIAN") && !huidig)) {
-        if (huidig) { campagnes.push(huidig); huidig = null; }
-        flushSectie(); sectie = "guardian";
-      } else if (up.includes("===CREATIEVE FATIGUE") || (up.startsWith("CREATIEVE FATIGUE") && !huidig)) {
-        flushSectie(); sectie = "fatigue";
-      } else if (up.includes("===DAGELIJKSE") || up.includes("===DAILY") || (up.startsWith("DAGELIJKSE SAMENVATTING") && !huidig)) {
-        flushSectie(); sectie = "samenvatting";
-      } else if (huidig) {
-        if (r.startsWith("BESLISSING:")) {
-          const b = r.replace("BESLISSING:", "").trim().toUpperCase();
-          huidig.beslissing = b.includes("STOP") ? "STOP DIRECT" : b.includes("OPTIMALISEER") ? "OPTIMALISEER" : b.includes("OPSCHALEN") ? "OPSCHALEN" : "BLIJVEN LOPEN";
-        } else if (r.startsWith("PRIORITEIT:")) {
-          const p = r.replace("PRIORITEIT:", "").trim();
-          huidig.prioriteit = p.startsWith("1") ? 1 : p.startsWith("3") ? 3 : 2;
-        } else if (r.startsWith("VERTROUWEN:")) {
-          const v = r.replace("VERTROUWEN:", "").trim().toUpperCase();
-          huidig.vertrouwen = v.includes("STERK") ? "STERK" : v.includes("MATIG") ? "MATIG" : "LAAG";
-        } else if (r.startsWith("REDEN:")) {
-          huidig.reden = r.replace("REDEN:", "").trim();
-        } else if (r.startsWith("CIJFERS:")) {
-          huidig.cijfers = r.replace("CIJFERS:", "").trim();
-        } else if (r.startsWith("ACTIE:")) {
-          huidig.actie = r.replace("ACTIE:", "").trim();
-        } else if (!huidig.beslissing) {
-          if (up.includes("STOP DIRECT") || up.includes("STOPPEN") || up.includes("PAUZEER")) huidig.beslissing = "STOP DIRECT";
-          else if (up.includes("OPTIMALISEER") || up.includes("BIJSTUREN") || up.includes("AANPASSEN")) huidig.beslissing = "OPTIMALISEER";
-          else if (up.includes("OPSCHALEN") || up.includes("SCHAAL OP") || up.includes("VERHOOG BUDGET")) huidig.beslissing = "OPSCHALEN";
-          else if (up.includes("BLIJVEN LOPEN") || up.includes("VERDER") || up.includes("LATEN LOPEN")) huidig.beslissing = "BLIJVEN LOPEN";
-          else if (r.startsWith("REDEN:") || r.startsWith("ACTIE:")) { /* skip */ }
-          else if (huidig.naam && !huidig.beslissing && r.length > 5) {
-            // Als er na de naam nog geen beslissing is, kijk in de tekst
-            const tekst = r.toLowerCase();
-            if (tekst.includes("stop") || tekst.includes("pauz")) huidig.beslissing = "STOP DIRECT";
-            else if (tekst.includes("optim") || tekst.includes("verbeter")) huidig.beslissing = "OPTIMALISEER";
-            else if (tekst.includes("schaal") || tekst.includes("verhoog")) huidig.beslissing = "OPSCHALEN";
-          }
-        }
-      } else if (sectie) {
-        sectieBuffer.push(r);
-      }
-    }
-    if (huidig) campagnes.push(huidig);
-    flushSectie();
-    // RESCUE: als campagnes leeg is maar ownerSummary campagne-regels bevat,
-    // betekent dit dat de AI geen OWNER SUMMARY header gebruikte
-    // → herparse ownerSummary als campagne-tekst
-    if (campagnes.length === 0 && ownerSummary && ownerSummary.toUpperCase().includes("CAMPAGNE:")) {
-      const rescueTekst = ownerSummary;
-      ownerSummary = "";
-      // Herparse de rescue tekst
-      const rescueRegels = rescueTekst.split(sep);
-      for (const rr of rescueRegels) {
-        const rv = rr.trim().replace(/[*]{1,2}([^*]*)[*]{1,2}/g, "$1");
-        if (!rv) continue;
-        const ru = rv.toUpperCase();
-        const isC = rv.startsWith("---CAMPAGNE:") || rv.startsWith("--- CAMPAGNE:")
-          || (ru.startsWith("CAMPAGNE:") && !sectie)
-          || rv.startsWith("**CAMPAGNE:") || rv.startsWith("## CAMPAGNE:");
-        if (isC) {
-          if (huidig) campagnes.push(huidig);
-          huidig = { naam: rv.replace(/^[-*# ]*CAMPAGNE:\s*/i, "").trim(), beslissing: "", prioriteit: 2, vertrouwen: "", reden: "", cijfers: "", actie: "" };
-        } else if (huidig) {
-          if (rv.startsWith("BESLISSING:")) { const b = rv.replace("BESLISSING:", "").trim().toUpperCase(); huidig.beslissing = b.includes("STOP") ? "STOP DIRECT" : b.includes("OPTIMALISEER") ? "OPTIMALISEER" : b.includes("OPSCHALEN") ? "OPSCHALEN" : "BLIJVEN LOPEN"; }
-          else if (rv.startsWith("PRIORITEIT:")) { const p = rv.replace("PRIORITEIT:", "").trim(); huidig.prioriteit = p.startsWith("1") ? 1 : p.startsWith("3") ? 3 : 2; }
-          else if (rv.startsWith("VERTROUWEN:")) { const v = rv.replace("VERTROUWEN:", "").trim().toUpperCase(); huidig.vertrouwen = v.includes("STERK") ? "STERK" : v.includes("MATIG") ? "MATIG" : "LAAG"; }
-          else if (rv.startsWith("REDEN:")) { huidig.reden = rv.replace("REDEN:", "").trim(); }
-          else if (rv.startsWith("CIJFERS:")) { huidig.cijfers = rv.replace("CIJFERS:", "").trim(); }
-          else if (rv.startsWith("ACTIE:")) { huidig.actie = rv.replace("ACTIE:", "").trim(); }
-          else if (rv.trim() === "---") { campagnes.push(huidig); huidig = null; }
-        } else if (ru.includes("BUDGET GUARDIAN")) { sectie = "guardian"; }
-        else if (ru.includes("CREATIEVE FATIGUE")) { sectie = "fatigue"; }
-        else if (ru.includes("SAMENVATTING") || ru.includes("SUMMARY")) { sectie = "samenvatting"; }
-        else if (sectie) { sectieBuffer.push(rv); }
-      }
-      if (huidig) campagnes.push(huidig);
-      const fi = sectieBuffer.filter(r => r.trim()).join(sep).trim();
-      if (sectie === "guardian") guardian = fi;
-      else if (sectie === "fatigue") fatigue = fi;
-      else if (sectie === "samenvatting") samenvatting = fi;
-    }
 
-    // Sort by prioriteit (1 eerst)
-    campagnes.sort((a, b) => (a.prioriteit || 2) - (b.prioriteit || 2));
-    return { campagnes, guardian, fatigue, samenvatting, ownerSummary };
-  };
 
   const renderEvaluatie = (tekst) => {
     if (!tekst) return null;
@@ -3906,7 +3909,7 @@ function SnelleEvaluatie({ bedrijf, setBedrijf, csvData, setCsvData, onSluiten }
                   </div>
                   {actieTab === "evaluatie" && (
                     <div style={{ background:C.card, borderRadius:14, border:`1px solid ${C.border}`, padding:"22px 26px" }}>
-                      {Stap9Render(resultaat, { naam, aanbod })}
+                      <Stap9Render resultaat={resultaat} naam={naam} aanbod={aanbod} />
                     </div>
                   )}
                   <div style={{ marginTop:12, display:"flex", gap:10 }}>
@@ -3925,7 +3928,7 @@ function SnelleEvaluatie({ bedrijf, setBedrijf, csvData, setCsvData, onSluiten }
 }
 
 // Helper: render evaluatie output in SnelleEvaluatie context
-function Stap9Render(tekst, bedrijfMini) {
+function Stap9Render({ resultaat: tekst, naam, aanbod }) {
   if (!tekst) return null;
   const blokken = parseerEvaluatie(tekst);
   const kleurMap = {
