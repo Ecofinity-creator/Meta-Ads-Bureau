@@ -3871,11 +3871,38 @@ function SnelleEvaluatie({ bedrijf, setBedrijf, csvData, setCsvData, onSluiten }
                       </button>
                     ))}
                   </div>
-                  {actieTab === "evaluatie" && (
-                    <div style={{ background:C.card, borderRadius:14, border:`1px solid ${C.border}`, padding:"22px 26px" }}>
-                      <Stap9Render resultaat={resultaat} naam={naam} aanbod={aanbod} />
-                    </div>
-                  )}
+                  {actieTab === "evaluatie" && (() => {
+                    const bl = parseerEvaluatie(resultaat || "");
+                    const klM2 = {"STOP DIRECT":{dot:"#CC2200",bg:"#FFF0F0",brd:"#F0B0B0",ic:"🔴",lb:"Stop direct"},"OPTIMALISEER":{dot:"#E08000",bg:"#FFF8E8",brd:"#F0D080",ic:"🟡",lb:"Optimaliseer"},"BLIJVEN LOPEN":{dot:"#1A7A1A",bg:"#F0FFF0",brd:"#90D090",ic:"🟢",lb:"Blijven lopen"},"OPSCHALEN":{dot:"#1A3A9A",bg:"#F0F4FF",brd:"#90A8E8",ic:"🚀",lb:"Opschalen"}};
+                    const nl2 = String.fromCharCode(10);
+                    const op2 = bl.ownerSummary ? bl.ownerSummary.replace(/\s+([23])[.)]\s/g, nl2+"$1. ").split(nl2).map(p=>p.trim()).filter(p=>p.length>4&&!p.toUpperCase().startsWith("CAMPAGNE:")&&!p.toUpperCase().startsWith("BESLISSING:")).slice(0,3) : [];
+                    const pc2 = [{num:"1",ic:"✅",lb:"Doe vandaag",kl:"#4ADE80"},{num:"2",ic:"🚫",lb:"Laat staan",kl:"#FCA5A5"},{num:"3",ic:"🔧",lb:"Los eerst op",kl:"#FCD34D"}];
+                    return (
+                      <div style={{ background:C.card, borderRadius:14, border:`1px solid ${C.border}`, padding:"22px 26px" }}>
+                        {/* Fallback als parsing leeg is */}
+                        {bl.campagnes.length === 0 && op2.length === 0 && (
+                          <div style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.8, whiteSpace:"pre-wrap" }}>{resultaat}</div>
+                        )}
+                        {/* Wat doe je vandaag */}
+                        {op2.length > 0 && (
+                          <div style={{ borderRadius:12, marginBottom:20, overflow:"hidden" }}>
+                            <div style={{ background:C.groen, padding:"12px 20px", display:"flex", alignItems:"center", gap:8 }}>
+                              <span style={{ fontSize:18 }}>🎯</span>
+                              <span style={{ fontFamily:font.display, fontWeight:700, fontSize:14, color:"#fff", textTransform:"uppercase", letterSpacing:"2px" }}>Wat doe je vandaag?</span>
+                            </div>
+                            <div style={{ background:"#1A4A30", padding:"14px 18px", display:"flex", flexDirection:"column", gap:10 }}>
+                              {op2.map((p, pi) => { const mm=p.match(/^([1-9])[.):\s]/); const nn=mm?mm[1]:String(pi+1); const tt=p.replace(/^[1-9][.):\s]+/,"").trim(); const cc=pc2.find(c=>c.num===nn)||pc2[Math.min(pi,2)]; return (<div key={pi} style={{ display:"flex", gap:12, alignItems:"flex-start", background:"rgba(255,255,255,.09)", borderRadius:9, padding:"10px 14px", borderLeft:`3px solid ${cc.kl}` }}><span style={{ fontSize:18, flexShrink:0 }}>{cc.ic}</span><div><div style={{ fontFamily:font.body, fontWeight:700, fontSize:10, color:cc.kl, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:3 }}>{cc.lb}</div><div style={{ fontFamily:font.body, fontSize:13, color:"rgba(255,255,255,.92)", lineHeight:1.7 }}>{tt}</div></div></div>); })}
+                            </div>
+                          </div>
+                        )}
+                        {/* Campagnes */}
+                        {bl.campagnes.length > 0 && <>
+                          <div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:12 }}>{bl.campagnes.length} campagne{bl.campagnes.length!==1?"s":""} — op prioriteit</div>
+                          {bl.campagnes.map((blok, ci) => { const kl2=klM2[blok.beslissing||"BLIJVEN LOPEN"]||klM2["BLIJVEN LOPEN"]; const vt=blok.vertrouwen==="STERK"?"✓ Voldoende data":blok.vertrouwen==="MATIG"?"~ Indicatief":blok.vertrouwen==="LAAG"?"⚠ Weinig data":null; const vk=blok.vertrouwen==="STERK"?C.groen:blok.vertrouwen==="MATIG"?"#8A6200":"#B03A2E"; return (<div key={ci} style={{ borderRadius:12, marginBottom:18, overflow:"hidden", border:`2px solid ${kl2.dot}` }}><div style={{ background:kl2.bg, padding:"12px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10, borderBottom:`1.5px solid ${kl2.brd}` }}><div style={{ display:"flex", alignItems:"center", gap:10 }}><div style={{ width:18, height:18, borderRadius:"50%", background:kl2.dot }} /><span style={{ fontFamily:font.display, fontWeight:700, fontSize:15, color:C.text, textDecoration:"underline", textDecorationColor:kl2.dot, textUnderlineOffset:4 }}>{blok.naam||"Campagne"}</span></div><div style={{ display:"flex", alignItems:"center", gap:6, background:"white", border:`2px solid ${kl2.dot}`, borderRadius:18, padding:"4px 12px" }}><span>{kl2.ic}</span><span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:kl2.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl2.lb}</span></div></div><div style={{ background:"white" }}>{(blok.reden||blok.cijfers)&&<div style={{ padding:"11px 18px", borderBottom:`1px solid ${kl2.brd}` }}><div style={{ fontFamily:font.body, fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:5 }}>Reden</div>{blok.reden&&<div style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.7, marginBottom:blok.cijfers?7:0 }}>{blok.reden}</div>}{blok.cijfers&&<div style={{ display:"inline-flex", alignItems:"center", gap:6, background:kl2.bg, border:`1px solid ${kl2.brd}`, borderRadius:6, padding:"3px 10px", fontFamily:"monospace", fontSize:12, fontWeight:700, color:kl2.dot }}>📊 {blok.cijfers}</div>}</div>}{blok.actie&&<div style={{ padding:"11px 18px", background:"#EBF5EF", borderBottom:vt?`1px solid #A8D4B8`:"none", display:"flex", gap:10 }}><span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:C.groen, textTransform:"uppercase", letterSpacing:"1px", flexShrink:0 }}>→ Actie</span><span style={{ fontFamily:font.body, fontSize:13, color:C.groenDim, fontWeight:600, lineHeight:1.6 }}>{blok.actie}</span></div>}{vt&&<div style={{ padding:"5px 18px" }}><span style={{ fontFamily:font.body, fontSize:11, color:vk, fontWeight:700 }}>{vt}</span></div>}</div></div>); })}
+                        </>}
+                      </div>
+                    );
+                  })()}
                   <div style={{ marginTop:12, display:"flex", gap:10 }}>
                     <button onClick={evalueer} style={{ background:C.groenLight, border:`1px solid ${C.borderGreen}`, borderRadius:9, padding:"9px 18px", color:C.groen, fontFamily:font.body, fontWeight:600, fontSize:13, cursor:"pointer" }}>↺ Opnieuw evalueren</button>
                     <button onClick={onSluiten} style={{ background:C.bgMid, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 18px", color:C.textSoft, fontFamily:font.body, fontWeight:600, fontSize:13, cursor:"pointer" }}>Sluiten</button>
@@ -3933,6 +3960,11 @@ function Stap9Render({ resultaat: tekst, naam, aanbod }) {
           </div>
         </div>
       )}
+      {/* Fallback: toon ruwe tekst als parsing niets oplevert */}
+      {blokken.campagnes.length === 0 && punten.length === 0 && (
+        <div style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.8, whiteSpace:"pre-wrap", background:C.bgMid, borderRadius:10, padding:"16px 20px" }}>{tekst}</div>
+      )}
+
       {blokken.campagnes.length > 0 && (
         <>
           <div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:12 }}>
