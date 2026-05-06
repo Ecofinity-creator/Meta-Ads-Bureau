@@ -3326,215 +3326,179 @@ function Stap9({ bedrijf, csvData, onBack, onTrialVoltooid }) {
   const renderEvaluatie = (tekst) => {
     if (!tekst) return null;
     const { campagnes, guardian, fatigue, samenvatting, ownerSummary } = parseerEvaluatie(tekst);
-    const kleurMap = {
+    const klM = {
       "STOP DIRECT":   { dot:"#CC2200", bg:"#FFF0F0", brd:"#F0B0B0", icoon:"🔴", label:"Stop direct" },
       "OPTIMALISEER":  { dot:"#E08000", bg:"#FFF8E8", brd:"#F0D080", icoon:"🟡", label:"Optimaliseer" },
       "BLIJVEN LOPEN": { dot:"#1A7A1A", bg:"#F0FFF0", brd:"#90D090", icoon:"🟢", label:"Blijven lopen" },
       "OPSCHALEN":     { dot:"#1A3A9A", bg:"#F0F4FF", brd:"#90A8E8", icoon:"🚀", label:"Opschalen" },
     };
+    const puntCfg = [
+      { num:"1", icoon:"✅", label:"Doe vandaag",  kleurBrd:"#4ADE80" },
+      { num:"2", icoon:"🚫", label:"Laat staan",   kleurBrd:"#FCA5A5" },
+      { num:"3", icoon:"🔧", label:"Los eerst op", kleurBrd:"#FCD34D" },
+    ];
+    const nl = String.fromCharCode(10);
 
-    // ── WAT DOE JE VANDAAG — verbeterd groen blok ──
-    const OwnerBlock = () => {
-      if (!ownerSummary) return null;
-      const nl = String.fromCharCode(10);
-      const punten = ownerSummary
-        .replace(/\s+([23])[.):]\s/g, nl + "$1. ")
-        .split(nl)
-        .map(p => p.trim())
-        .filter(p => p.length > 4)
-        // Verwijder regels die er uitzien als campagne-data (parse fouten)
-        .filter(p => !p.toUpperCase().startsWith("CAMPAGNE:") && !p.toUpperCase().startsWith("BESLISSING:") && !p.toUpperCase().startsWith("PRIORITEIT:") && !p.toUpperCase().startsWith("VERTROUWEN:") && !p.toUpperCase().startsWith("REDEN:") && !p.toUpperCase().startsWith("ACTIE:") && !p.toUpperCase().startsWith("CIJFERS:") && !p.toUpperCase().startsWith("---"))
-        .slice(0, 3); // Max 3 punten
-      const config = [
-        { num:"1", icoon:"✅", label:"Doe vandaag", kleurBrd:"#4ADE80" },
-        { num:"2", icoon:"🚫", label:"Laat staan",  kleurBrd:"#FCA5A5" },
-        { num:"3", icoon:"🔧", label:"Los eerst op", kleurBrd:"#FCD34D" },
-      ];
-      return (
-        <div style={{ borderRadius:14, marginBottom:24, overflow:"hidden", boxShadow:"0 4px 20px rgba(26,74,48,.25)" }}>
-          {/* Header */}
-          <div style={{ background:C.groen, padding:"14px 22px", display:"flex", alignItems:"center", gap:10 }}>
-            <span style={{ fontSize:20 }}>🎯</span>
-            <span style={{ fontFamily:font.display, fontWeight:700, fontSize:15, color:"#fff", textTransform:"uppercase", letterSpacing:"2px" }}>Wat doe je vandaag?</span>
+    // Parse owner summary punten
+    const ownerPunten = ownerSummary
+      ? ownerSummary
+          .replace(/\s+([23])[.)]\s/g, nl + "$1. ")
+          .split(nl).map(p => p.trim())
+          .filter(p => p.length > 4
+            && !p.toUpperCase().startsWith("CAMPAGNE:")
+            && !p.toUpperCase().startsWith("BESLISSING:")
+            && !p.toUpperCase().startsWith("REDEN:")
+            && !p.toUpperCase().startsWith("ACTIE:"))
+          .slice(0, 3)
+      : [];
+
+    // Fatigue parsing
+    const fatLines = fatigue ? fatigue.split(nl) : [];
+    const findFL = (pfx) => fatLines.find(l => l.trim().toUpperCase().startsWith(pfx.toUpperCase()));
+    const exV = (line) => line ? line.replace(/^[^:]+:\s*/i, "").trim() : "";
+    const signaalLine = findFL("SIGNALEN:");
+    const signalen = signaalLine ? exV(signaalLine).split(",").map(s => s.trim()).filter(Boolean) : [];
+    const diagnose = exV(findFL("DIAGNOSE:"));
+    const nieuweHook = exV(findFL("NIEUWE HOOK:"));
+
+    return (
+      <div>
+        {/* WAT DOE JE VANDAAG */}
+        {ownerPunten.length > 0 && (
+          <div style={{ borderRadius:14, marginBottom:24, overflow:"hidden", boxShadow:"0 4px 20px rgba(26,74,48,.25)" }}>
+            <div style={{ background:C.groen, padding:"14px 22px", display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ fontSize:20 }}>🎯</span>
+              <span style={{ fontFamily:font.display, fontWeight:700, fontSize:15, color:"#fff", textTransform:"uppercase", letterSpacing:"2px" }}>Wat doe je vandaag?</span>
+            </div>
+            <div style={{ background:"#1A4A30", padding:"16px 20px", display:"flex", flexDirection:"column", gap:10 }}>
+              {ownerPunten.map((p, i) => {
+                const m2 = p.match(/^([1-9])[.):\s]/);
+                const num = m2 ? m2[1] : String(i + 1);
+                const tekst2 = p.replace(/^[1-9][.):\s]+/, "").trim();
+                const cfg = puntCfg.find(c => c.num === num) || puntCfg[Math.min(i, 2)];
+                return (
+                  <div key={i} style={{ display:"flex", gap:12, alignItems:"flex-start", background:"rgba(255,255,255,.09)", borderRadius:10, padding:"12px 16px", borderLeft:`3px solid ${cfg.kleurBrd}` }}>
+                    <span style={{ fontSize:20, flexShrink:0, lineHeight:1.2 }}>{cfg.icoon}</span>
+                    <div>
+                      <div style={{ fontFamily:font.body, fontWeight:700, fontSize:10, color:cfg.kleurBrd, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:4 }}>{cfg.label}</div>
+                      <div style={{ fontFamily:font.body, fontSize:14, color:"rgba(255,255,255,.93)", lineHeight:1.75 }}>{tekst2}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          {/* Punten */}
-          <div style={{ background:"#1A4A30", padding:"16px 20px", display:"flex", flexDirection:"column", gap:10 }}>
-            {punten.map((p, i) => {
-              const numMatch = p.match(/^([1-9])[.):\s]/);
-              const num = numMatch ? numMatch[1] : String(i+1);
-              const tekst = p.replace(/^[1-9][.):\s]+/, "").trim();
-              const cfg = config.find(c => c.num === num) || config[Math.min(i, 2)];
+        )}
+
+        {/* CAMPAGNES */}
+        {campagnes.length === 0 && ownerPunten.length === 0 && (
+          <div style={{ fontFamily:font.body, fontSize:13, color:C.muted, background:C.bgMid, borderRadius:10, padding:"16px 20px", lineHeight:1.8, whiteSpace:"pre-wrap" }}>{tekst}</div>
+        )}
+        {campagnes.length > 0 && (
+          <>
+            <div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:14 }}>
+              Evaluatie per campagne — {campagnes.length} {campagnes.length === 1 ? "campagne" : "campagnes"}, op prioriteit
+            </div>
+            {campagnes.map((blok, ci) => {
+              const beslissing = blok.beslissing || "BLIJVEN LOPEN";
+              const kl = klM[beslissing] || klM["BLIJVEN LOPEN"];
+              const vertrTxt = blok.vertrouwen === "STERK" ? "✓ Voldoende data"
+                : blok.vertrouwen === "MATIG" ? "~ Indicatief"
+                : blok.vertrouwen === "LAAG"  ? "⚠ Weinig data" : null;
+              const vertrKl = blok.vertrouwen === "STERK" ? C.groen
+                : blok.vertrouwen === "MATIG" ? "#8A6200" : "#B03A2E";
               return (
-                <div key={i} style={{ display:"flex", gap:12, alignItems:"flex-start", background:"rgba(255,255,255,.09)", borderRadius:10, padding:"12px 16px", borderLeft:`3px solid ${cfg.kleurBrd}` }}>
-                  <span style={{ fontSize:20, flexShrink:0, lineHeight:1.2 }}>{cfg.icoon}</span>
-                  <div>
-                    <div style={{ fontFamily:font.body, fontWeight:700, fontSize:10, color:cfg.kleurBrd, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:4 }}>{cfg.label}</div>
-                    <div style={{ fontFamily:font.body, fontSize:14, color:"rgba(255,255,255,.93)", lineHeight:1.75 }}>{tekst}</div>
+                <div key={ci} style={{ borderRadius:12, marginBottom:20, overflow:"hidden", border:`2px solid ${kl.dot}`, boxShadow:`0 2px 10px ${kl.dot}18` }}>
+                  {/* Titelbalk */}
+                  <div style={{ background:kl.bg, padding:"13px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap", borderBottom:`1.5px solid ${kl.brd}` }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <div style={{ width:22, height:22, borderRadius:"50%", background:kl.dot, flexShrink:0, boxShadow:`0 0 0 5px ${kl.dot}25` }} />
+                      <span style={{ fontFamily:font.display, fontWeight:700, fontSize:16, color:C.text, textDecoration:"underline", textDecorationColor:kl.dot, textUnderlineOffset:4 }}>{blok.naam || "Campagne"}</span>
+                    </div>
+                    {blok.prioriteit === 1 && <span style={{ background:C.groen, color:"#fff", fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:4, fontFamily:font.body }}>EERST</span>}
+                    <div style={{ display:"flex", alignItems:"center", gap:7, background:"white", border:`2px solid ${kl.dot}`, borderRadius:20, padding:"5px 14px" }}>
+                      <span style={{ fontSize:15 }}>{kl.icoon}</span>
+                      <span style={{ fontFamily:font.body, fontWeight:800, fontSize:12, color:kl.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl.label}</span>
+                    </div>
+                  </div>
+                  {/* Body */}
+                  <div style={{ background:"white" }}>
+                    {(blok.reden || blok.cijfers) && (
+                      <div style={{ padding:"13px 20px", borderBottom:`1px solid ${kl.brd}` }}>
+                        <div style={{ fontFamily:font.body, fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:6 }}>Reden</div>
+                        {blok.reden && <div style={{ fontFamily:font.body, fontSize:14, color:C.textSoft, lineHeight:1.75, marginBottom:blok.cijfers?8:0 }}>{blok.reden}</div>}
+                        {blok.cijfers && <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:kl.bg, border:`1px solid ${kl.brd}`, borderRadius:7, padding:"4px 12px" }}><span style={{ fontFamily:"monospace", fontSize:13, fontWeight:700, color:kl.dot }}>📊 {blok.cijfers}</span></div>}
+                      </div>
+                    )}
+                    {blok.actie && (
+                      <div style={{ padding:"13px 20px", background:C.groenLight, borderBottom:vertrTxt?`1px solid ${C.borderGreen}`:"none", display:"flex", gap:12, alignItems:"flex-start" }}>
+                        <span style={{ fontFamily:font.body, fontWeight:800, fontSize:12, color:C.groen, flexShrink:0, textTransform:"uppercase", letterSpacing:"1px" }}>→ Actie</span>
+                        <span style={{ fontFamily:font.body, fontSize:14, color:C.groenDim, fontWeight:600, lineHeight:1.65 }}>{blok.actie}</span>
+                      </div>
+                    )}
+                    {vertrTxt && (
+                      <div style={{ padding:"6px 20px", display:"flex", alignItems:"center", gap:6 }}>
+                        <span style={{ fontFamily:font.body, fontSize:11, color:vertrKl, fontWeight:700 }}>{vertrTxt}</span>
+                        <span style={{ fontFamily:font.body, fontSize:11, color:C.muted }}>· datakwaliteit voor dit advies</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             })}
-          </div>
-        </div>
-      );
-    };
-
-    // ── CAMPAGNE KAART — schone alinea per campagne ──
-    const CampagneKaart = ({ blok, idx }) => {
-      const beslissing = blok.beslissing || "BLIJVEN LOPEN";
-      const kl = kleurMap[beslissing] || kleurMap["BLIJVEN LOPEN"];
-
-      const vertrTekst = blok.vertrouwen === "STERK" ? "✓ Voldoende data"
-        : blok.vertrouwen === "MATIG"  ? "~ Indicatief"
-        : blok.vertrouwen === "LAAG"   ? "⚠ Weinig data" : null;
-      const vertrKleur = blok.vertrouwen === "STERK" ? C.groen
-        : blok.vertrouwen === "MATIG"  ? "#8A6200" : "#B03A2E";
-
-      return (
-        <div style={{ borderRadius:12, marginBottom:20, overflow:"hidden", border:`2px solid ${kl.dot}`, boxShadow:`0 2px 10px ${kl.dot}18` }}>
-
-          {/* ── TITEL BALK met bol + onderstreepte naam ── */}
-          <div style={{ background:kl.bg, padding:"13px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap", borderBottom:`1.5px solid ${kl.brd}` }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              {/* Grote gekleurde bol */}
-              <div style={{ width:22, height:22, borderRadius:"50%", background:kl.dot, flexShrink:0, boxShadow:`0 0 0 5px ${kl.dot}25` }} />
-              {/* Campagnenaam ONDERSTREEPT */}
-              <span style={{ fontFamily:font.display, fontWeight:700, fontSize:16, color:C.text, textDecoration:"underline", textDecorationColor:kl.dot, textUnderlineOffset:4 }}>
-                {blok.naam || "Campagne"}
-              </span>
-            </div>
-            {/* Beslissing pill */}
-            <div style={{ display:"flex", alignItems:"center", gap:7, background:"white", border:`2px solid ${kl.dot}`, borderRadius:20, padding:"5px 14px", flexShrink:0 }}>
-              <span style={{ fontSize:16 }}>{kl.icoon}</span>
-              <span style={{ fontFamily:font.body, fontWeight:800, fontSize:12, color:kl.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl.label}</span>
-            </div>
-          </div>
-
-          {/* ── BODY ── */}
-          <div style={{ background:"white" }}>
-
-            {/* Reden + cijfers */}
-            {(blok.reden || blok.cijfers) && (
-              <div style={{ padding:"13px 20px", borderBottom:`1px solid ${kl.brd}` }}>
-                <div style={{ fontFamily:font.body, fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:6 }}>Reden</div>
-                {blok.reden && (
-                  <div style={{ fontFamily:font.body, fontSize:14, color:C.textSoft, lineHeight:1.75, marginBottom: blok.cijfers ? 8 : 0 }}>{blok.reden}</div>
-                )}
-                {blok.cijfers && (
-                  <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:kl.bg, border:`1px solid ${kl.brd}`, borderRadius:7, padding:"4px 12px" }}>
-                    <span style={{ fontFamily:"monospace", fontSize:13, fontWeight:700, color:kl.dot }}>📊 {blok.cijfers}</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Actie */}
-            {blok.actie && (
-              <div style={{ padding:"13px 20px", background:C.groenLight, borderBottom: vertrTekst ? `1px solid ${C.borderGreen}` : "none", display:"flex", gap:12, alignItems:"flex-start" }}>
-                <span style={{ fontFamily:font.body, fontWeight:800, fontSize:12, color:C.groen, flexShrink:0, paddingTop:1, textTransform:"uppercase", letterSpacing:"1px" }}>→ Actie</span>
-                <span style={{ fontFamily:font.body, fontSize:14, color:C.groenDim, fontWeight:600, lineHeight:1.65 }}>{blok.actie}</span>
-              </div>
-            )}
-
-            {/* Vertrouwen footer */}
-            {vertrTekst && (
-              <div style={{ padding:"6px 20px", display:"flex", alignItems:"center", gap:6 }}>
-                <span style={{ fontFamily:font.body, fontSize:11, color:vertrKleur, fontWeight:700 }}>{vertrTekst}</span>
-                <span style={{ fontFamily:font.body, fontSize:11, color:C.muted }}>· datakwaliteit voor dit advies</span>
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    };
-
-    const SectieTitel = ({ icoon, label, kleur }) => (
-      <div style={{ display:"flex", alignItems:"center", gap:10, margin:"28px 0 12px" }}>
-        <span style={{ fontSize:18 }}>{icoon}</span>
-        <span style={{ fontFamily:font.body, fontWeight:800, fontSize:12, color:kleur, textTransform:"uppercase", letterSpacing:"1.5px" }}>{label}</span>
-        <div style={{ flex:1, height:1.5, background:kleur+"30" }} />
-      </div>
-    );
-
-    return (
-      <div>
-        {/* Owner Summary altijd bovenaan */}
-        <OwnerBlock />
-
-        {/* Campagnes — elk in eigen blok, lege ruimte ertussen */}
-        {campagnes.length > 0 && (
-          <>
-            <div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:14 }}>
-              Evaluatie per campagne — {campagnes.length} {campagnes.length === 1 ? "campagne" : "campagnes"}, gesorteerd op prioriteit
-            </div>
-            {campagnes.map((blok, i) => <CampagneKaart key={i} blok={blok} idx={i} />)}
           </>
         )}
 
-        {/* Als er geen campagnes geparseerd zijn: toon ruwe tekst als fallback */}
-        {campagnes.length === 0 && ownerSummary === "" && (
-          <div style={{ fontFamily:font.body, fontSize:13, color:C.muted, lineHeight:1.8, whiteSpace:"pre-wrap", background:C.bgMid, borderRadius:10, padding:"16px 20px" }}>{tekst}</div>
-        )}
-
+        {/* GUARDIAN */}
         {guardian && (
           <>
-            <SectieTitel icoon="🛡️" label="Budget Guardian" kleur="#b05000" />
+            <div style={{ display:"flex", alignItems:"center", gap:10, margin:"28px 0 12px" }}>
+              <span style={{ fontSize:18 }}>🛡️</span>
+              <span style={{ fontFamily:font.body, fontWeight:800, fontSize:12, color:"#b05000", textTransform:"uppercase", letterSpacing:"1.5px" }}>Budget Guardian</span>
+              <div style={{ flex:1, height:1.5, background:"#b0500030" }} />
+            </div>
             <div style={{ background:"#FFF8F0", border:"1.5px solid #F0D0A0", borderRadius:10, padding:"14px 20px", fontFamily:font.body, fontSize:13, color:"#5A3000", lineHeight:1.8, whiteSpace:"pre-wrap" }}>{guardian}</div>
           </>
         )}
+
+        {/* FATIGUE */}
         {fatigue && (
           <>
-            <SectieTitel icoon="⚡" label="Creatieve Fatigue Radar" kleur="#8A5A00" />
+            <div style={{ display:"flex", alignItems:"center", gap:10, margin:"28px 0 12px" }}>
+              <span style={{ fontSize:18 }}>⚡</span>
+              <span style={{ fontFamily:font.body, fontWeight:800, fontSize:12, color:"#8A5A00", textTransform:"uppercase", letterSpacing:"1.5px" }}>Creatieve Fatigue Radar</span>
+              <div style={{ flex:1, height:1.5, background:"#8A5A0030" }} />
+            </div>
             <div style={{ background:"#FFFAF0", border:"1.5px solid #E8C000", borderRadius:12, overflow:"hidden" }}>
-              {(() => {
-                const sep = String.fromCharCode(10);
-                const fl = fatigue.split(sep);
-                const findL = (pfx) => fl.find(l => l.trim().toUpperCase().startsWith(pfx.toUpperCase()));
-                const exV = (line) => line ? line.replace(/^[^:]+:\s*/i, "").trim() : "";
-                const signaalLine = findL("SIGNALEN:");
-                const diagnoseL = findL("DIAGNOSE:");
-                const hookL = findL("NIEUWE HOOK:");
-                const signalen = signaalLine ? exV(signaalLine).split(",").map(s=>s.trim()).filter(Boolean) : [];
-                const diagnose = exV(diagnoseL);
-                const nieuweHook = exV(hookL);
-                const sigIcoon = (s) => {
-                  const sl = s.toLowerCase();
-                  if (sl.includes("ctr")) return { icoon:"📉", kleur:"#CC2200" };
-                  if (sl.includes("frequentie")) return { icoon:"🔁", kleur:"#E08000" };
-                  if (sl.includes("cpc")) return { icoon:"💸", kleur:"#CC2200" };
-                  return { icoon:"⚠️", kleur:"#8A6200" };
-                };
-                return (
-                  <div>
-                    {signalen.length > 0 ? (
-                      <div style={{ padding:"14px 18px", borderBottom:"1px solid #E8D080" }}>
-                        <div style={{ fontFamily:font.body, fontSize:11, color:"#8A6200", textTransform:"uppercase", letterSpacing:"1px", marginBottom:10 }}>Fatigue-signalen</div>
-                        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                          {signalen.map((s, i) => { const si=sigIcoon(s); return <span key={i} style={{ display:"flex", alignItems:"center", gap:5, background:"white", border:`1.5px solid ${si.kleur}44`, borderRadius:8, padding:"5px 12px", fontFamily:font.body, fontSize:12, color:si.kleur, fontWeight:600 }}>{si.icoon} {s}</span>; })}
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ padding:"14px 18px", borderBottom:"1px solid #E8D080", fontFamily:font.body, fontSize:13, color:"#5A4000", lineHeight:1.7 }}>{fatigue}</div>
-                    )}
-                    {diagnose && <div style={{ padding:"12px 18px", borderBottom:"1px solid #E8D080" }}><span style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:"#8A6200", textTransform:"uppercase", letterSpacing:"1px" }}>Diagnose</span><span style={{ fontFamily:font.body, fontSize:13, color:"#5A4000", lineHeight:1.6, marginLeft:8 }}>{diagnose}</span></div>}
-                    {nieuweHook && (
-                      <div style={{ padding:"12px 18px", background:"#FFF8E0", display:"flex", gap:10, alignItems:"flex-start" }}>
-                        <span style={{ fontSize:18, flexShrink:0 }}>🧪</span>
-                        <div>
-                          <div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:"#8A6200", textTransform:"uppercase", letterSpacing:"1px", marginBottom:4 }}>Nieuwe hook om te testen</div>
-                          <div style={{ fontFamily:font.body, fontSize:13, color:"#5A4000", lineHeight:1.6, fontStyle:"italic" }}>{nieuweHook}</div>
-                        </div>
-                      </div>
-                    )}
+              {signalen.length > 0 ? (
+                <div style={{ padding:"14px 18px", borderBottom:"1px solid #E8D080" }}>
+                  <div style={{ fontFamily:font.body, fontSize:11, color:"#8A6200", textTransform:"uppercase", letterSpacing:"1px", marginBottom:10 }}>Signalen</div>
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                    {signalen.map((s, si) => {
+                      const sl = s.toLowerCase();
+                      const sic = sl.includes("ctr") ? "📉" : sl.includes("frequentie") ? "🔁" : sl.includes("cpc") ? "💸" : "⚠️";
+                      const skl = sl.includes("ctr") || sl.includes("cpc") ? "#CC2200" : "#E08000";
+                      return <span key={si} style={{ display:"flex", alignItems:"center", gap:5, background:"white", border:`1.5px solid ${skl}44`, borderRadius:8, padding:"5px 12px", fontFamily:font.body, fontSize:12, color:skl, fontWeight:600 }}>{sic} {s}</span>;
+                    })}
                   </div>
-                );
-              })()}
+                </div>
+              ) : (
+                <div style={{ padding:"14px 18px", borderBottom:"1px solid #E8D080", fontFamily:font.body, fontSize:13, color:"#5A4000", lineHeight:1.7 }}>{fatigue}</div>
+              )}
+              {diagnose && <div style={{ padding:"12px 18px", borderBottom:"1px solid #E8D080" }}><span style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:"#8A6200", textTransform:"uppercase", letterSpacing:"1px" }}>Diagnose</span><span style={{ fontFamily:font.body, fontSize:13, color:"#5A4000", marginLeft:8 }}>{diagnose}</span></div>}
+              {nieuweHook && <div style={{ padding:"12px 18px", background:"#FFF8E0", display:"flex", gap:10 }}><span style={{ fontSize:18, flexShrink:0 }}>🧪</span><div><div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:"#8A6200", textTransform:"uppercase", letterSpacing:"1px", marginBottom:4 }}>Nieuwe hook</div><div style={{ fontFamily:font.body, fontSize:13, color:"#5A4000", lineHeight:1.6, fontStyle:"italic" }}>{nieuweHook}</div></div></div>}
             </div>
           </>
         )}
+
+        {/* SAMENVATTING */}
         {samenvatting && (
           <>
-            <SectieTitel icoon="📋" label="Dagelijkse Samenvatting" kleur={C.navy} />
+            <div style={{ display:"flex", alignItems:"center", gap:10, margin:"28px 0 12px" }}>
+              <span style={{ fontSize:18 }}>📋</span>
+              <span style={{ fontFamily:font.body, fontWeight:800, fontSize:12, color:C.navy, textTransform:"uppercase", letterSpacing:"1.5px" }}>Dagelijkse Samenvatting</span>
+              <div style={{ flex:1, height:1.5, background:C.navy+"20" }} />
+            </div>
             <div style={{ background:C.bgMid, border:`1px solid ${C.border}`, borderRadius:10, padding:"14px 18px", fontFamily:font.body, fontSize:14, color:C.navy, lineHeight:1.8, fontStyle:"italic" }}>{samenvatting}</div>
           </>
         )}
@@ -3931,55 +3895,18 @@ function SnelleEvaluatie({ bedrijf, setBedrijf, csvData, setCsvData, onSluiten }
 function Stap9Render({ resultaat: tekst, naam, aanbod }) {
   if (!tekst) return null;
   const blokken = parseerEvaluatie(tekst);
-  const kleurMap = {
+  const klM = {
     "STOP DIRECT":   { dot:"#CC2200", bg:"#FFF0F0", brd:"#F0B0B0", icoon:"🔴", label:"Stop direct" },
     "OPTIMALISEER":  { dot:"#E08000", bg:"#FFF8E8", brd:"#F0D080", icoon:"🟡", label:"Optimaliseer" },
     "BLIJVEN LOPEN": { dot:"#1A7A1A", bg:"#F0FFF0", brd:"#90D090", icoon:"🟢", label:"Blijven lopen" },
     "OPSCHALEN":     { dot:"#1A3A9A", bg:"#F0F4FF", brd:"#90A8E8", icoon:"🚀", label:"Opschalen" },
   };
-
-  const CampagneKaartMini = ({ blok }) => {
-    const kl = kleurMap[blok.beslissing || "BLIJVEN LOPEN"] || kleurMap["BLIJVEN LOPEN"];
-    const vertrTekst = blok.vertrouwen === "STERK" ? "✓ Voldoende data" : blok.vertrouwen === "MATIG" ? "~ Indicatief" : blok.vertrouwen === "LAAG" ? "⚠ Weinig data" : null;
-    const vertrKleur = blok.vertrouwen === "STERK" ? "#2C6E49" : blok.vertrouwen === "MATIG" ? "#8A6200" : "#B03A2E";
-    return (
-      <div style={{ borderRadius:12, marginBottom:18, overflow:"hidden", border:`2px solid ${kl.dot}` }}>
-        <div style={{ background:kl.bg, padding:"12px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10, borderBottom:`1.5px solid ${kl.brd}` }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ width:18, height:18, borderRadius:"50%", background:kl.dot, flexShrink:0 }} />
-            <span style={{ fontFamily:font.display, fontWeight:700, fontSize:15, color:C.text, textDecoration:"underline", textDecorationColor:kl.dot, textUnderlineOffset:4 }}>{blok.naam}</span>
-          </div>
-          <div style={{ display:"flex", alignItems:"center", gap:6, background:"white", border:`2px solid ${kl.dot}`, borderRadius:18, padding:"4px 12px" }}>
-            <span>{kl.icoon}</span>
-            <span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:kl.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl.label}</span>
-          </div>
-        </div>
-        <div style={{ background:"white" }}>
-          {(blok.reden || blok.cijfers) && (
-            <div style={{ padding:"11px 18px", borderBottom:`1px solid ${kl.brd}` }}>
-              <div style={{ fontFamily:font.body, fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:5 }}>Reden</div>
-              {blok.reden && <div style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.7, marginBottom:blok.cijfers?7:0 }}>{blok.reden}</div>}
-              {blok.cijfers && <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:kl.bg, border:`1px solid ${kl.brd}`, borderRadius:6, padding:"3px 10px", fontFamily:"monospace", fontSize:12, fontWeight:700, color:kl.dot }}>📊 {blok.cijfers}</div>}
-            </div>
-          )}
-          {blok.actie && (
-            <div style={{ padding:"11px 18px", background:"#EBF5EF", borderBottom:vertrTekst?`1px solid #A8D4B8`:"none", display:"flex", gap:10 }}>
-              <span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:C.groen, textTransform:"uppercase", letterSpacing:"1px", flexShrink:0, paddingTop:2 }}>→ Actie</span>
-              <span style={{ fontFamily:font.body, fontSize:13, color:C.groenDim, fontWeight:600, lineHeight:1.6 }}>{blok.actie}</span>
-            </div>
-          )}
-          {vertrTekst && <div style={{ padding:"5px 18px", display:"flex", gap:6 }}><span style={{ fontFamily:font.body, fontSize:11, color:vertrKleur, fontWeight:700 }}>{vertrTekst}</span></div>}
-        </div>
-      </div>
-    );
-  };
-
   const nl = String.fromCharCode(10);
-  const punten = blokken.ownerSummary
-    ? blokken.ownerSummary.replace(/\s+([23])[.)]\s/g, nl+"$1. ").split(nl).map(p=>p.trim()).filter(p=>p.length>4&&!p.toUpperCase().startsWith("CAMPAGNE:")).slice(0,3)
-    : [];
   const pCfg = [{num:"1",ic:"✅",lb:"Doe vandaag",kl:"#4ADE80"},{num:"2",ic:"🚫",lb:"Laat staan",kl:"#FCA5A5"},{num:"3",ic:"🔧",lb:"Los eerst op",kl:"#FCD34D"}];
-
+  const punten = blokken.ownerSummary
+    ? blokken.ownerSummary.replace(/\s+([23])[.)]\s/g, nl+"$1. ").split(nl).map(p=>p.trim())
+        .filter(p=>p.length>4&&!p.toUpperCase().startsWith("CAMPAGNE:")&&!p.toUpperCase().startsWith("BESLISSING:")).slice(0,3)
+    : [];
   return (
     <div>
       {punten.length > 0 && (
@@ -3990,8 +3917,7 @@ function Stap9Render({ resultaat: tekst, naam, aanbod }) {
           </div>
           <div style={{ background:"#1A4A30", padding:"14px 18px", display:"flex", flexDirection:"column", gap:10 }}>
             {punten.map((p, i) => {
-              const m = p.match(/^([1-9])[.):\s]/);
-              const num = m?m[1]:String(i+1);
+              const m = p.match(/^([1-9])[.):\s]/); const num = m?m[1]:String(i+1);
               const txt = p.replace(/^[1-9][.):\s]+/,"").trim();
               const cfg = pCfg.find(c=>c.num===num)||pCfg[Math.min(i,2)];
               return (
@@ -4012,13 +3938,41 @@ function Stap9Render({ resultaat: tekst, naam, aanbod }) {
           <div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:12 }}>
             {blokken.campagnes.length} campagne{blokken.campagnes.length!==1?"s":""} — op prioriteit
           </div>
-          {blokken.campagnes.map((blok, i) => <CampagneKaartMini key={i} blok={blok} />)}
+          {blokken.campagnes.map((blok, ci) => {
+            const kl = klM[blok.beslissing||"BLIJVEN LOPEN"]||klM["BLIJVEN LOPEN"];
+            const vertrTxt = blok.vertrouwen==="STERK"?"✓ Voldoende data":blok.vertrouwen==="MATIG"?"~ Indicatief":blok.vertrouwen==="LAAG"?"⚠ Weinig data":null;
+            const vertrKl = blok.vertrouwen==="STERK"?C.groen:blok.vertrouwen==="MATIG"?"#8A6200":"#B03A2E";
+            return (
+              <div key={ci} style={{ borderRadius:12, marginBottom:18, overflow:"hidden", border:`2px solid ${kl.dot}` }}>
+                <div style={{ background:kl.bg, padding:"12px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10, borderBottom:`1.5px solid ${kl.brd}` }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={{ width:18, height:18, borderRadius:"50%", background:kl.dot }} />
+                    <span style={{ fontFamily:font.display, fontWeight:700, fontSize:15, color:C.text, textDecoration:"underline", textDecorationColor:kl.dot, textUnderlineOffset:4 }}>{blok.naam}</span>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:6, background:"white", border:`2px solid ${kl.dot}`, borderRadius:18, padding:"4px 12px" }}>
+                    <span>{kl.icoon}</span>
+                    <span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:kl.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl.label}</span>
+                  </div>
+                </div>
+                <div style={{ background:"white" }}>
+                  {(blok.reden||blok.cijfers) && (
+                    <div style={{ padding:"11px 18px", borderBottom:`1px solid ${kl.brd}` }}>
+                      <div style={{ fontFamily:font.body, fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:5 }}>Reden</div>
+                      {blok.reden&&<div style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.7, marginBottom:blok.cijfers?7:0 }}>{blok.reden}</div>}
+                      {blok.cijfers&&<div style={{ display:"inline-flex", alignItems:"center", gap:6, background:kl.bg, border:`1px solid ${kl.brd}`, borderRadius:6, padding:"3px 10px", fontFamily:"monospace", fontSize:12, fontWeight:700, color:kl.dot }}>📊 {blok.cijfers}</div>}
+                    </div>
+                  )}
+                  {blok.actie&&<div style={{ padding:"11px 18px", background:"#EBF5EF", borderBottom:vertrTxt?`1px solid #A8D4B8`:"none", display:"flex", gap:10 }}><span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:C.groen, textTransform:"uppercase", letterSpacing:"1px", flexShrink:0 }}>→ Actie</span><span style={{ fontFamily:font.body, fontSize:13, color:C.groenDim, fontWeight:600, lineHeight:1.6 }}>{blok.actie}</span></div>}
+                  {vertrTxt&&<div style={{ padding:"5px 18px" }}><span style={{ fontFamily:font.body, fontSize:11, color:vertrKl, fontWeight:700 }}>{vertrTxt}</span></div>}
+                </div>
+              </div>
+            );
+          })}
         </>
       )}
     </div>
   );
 }
-
 
 // ─── TRIAL MECHANISME ────────────────────────────────────────────────────────
 
