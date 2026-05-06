@@ -1688,7 +1688,7 @@ function SectorBalk({ aanbod, compact = false }) {
 }
 
 
-function Stap1({ data, setData, onNext, onHelp }) {
+function Stap1({ data, setData, onNext, onHelp, onSnelEvaluatie }) {
   const insertUsps = (blok) => {
     const huidig = data.aanbod.trim();
     setData({ ...data, aanbod: huidig ? huidig + "\n\nUSP's:\n" + blok : "USP's:\n" + blok });
@@ -1722,6 +1722,19 @@ function Stap1({ data, setData, onNext, onHelp }) {
       <Textarea label="Jouw aanbod *" value={data.aanbod} onChange={v => setData({ ...data, aanbod: v })}
         placeholder="Beschrijf je product of dienst, de prijs, USP's en je doelgroep…&#10;&#10;Gebruik de knoppen hierboven om automatisch een aanbodtekst en USP's op te zoeken." rows={7} />
       <Btn onClick={onNext} disabled={!data.naam.trim() || !data.aanbod.trim()}>Bevestigen & verder →</Btn>
+
+      {/* Snelle evaluatie shortcut */}
+      {data.naam.trim() && data.aanbod.trim() && (
+        <div style={{ marginTop:16, background:C.bgMid, border:`1.5px dashed ${C.borderGreen}`, borderRadius:12, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
+          <div>
+            <div style={{ fontFamily:font.body, fontWeight:700, fontSize:13, color:C.groen, marginBottom:3 }}>⚡ Al campagnes lopend?</div>
+            <div style={{ fontFamily:font.body, fontSize:12, color:C.muted }}>Upload direct je CSV en evalueer je campagnes — zonder de volledige wizard te doorlopen.</div>
+          </div>
+          <button onClick={onSnelEvaluatie} style={{ background:C.groen, border:"none", borderRadius:9, padding:"10px 20px", color:"#fff", fontFamily:font.body, fontWeight:700, fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
+            📊 Snelle evaluatie →
+          </button>
+        </div>
+      )}
     </Card>
   );
 }
@@ -3733,6 +3746,277 @@ function Stap9({ bedrijf, csvData, onBack, onTrialVoltooid }) {
 }
 
 
+// ─── SNELLE EVALUATIE ─────────────────────────────────────────────────────────
+// Overlay: enkel naam + aanbod invullen + CSV uploaden → meteen evalueren
+
+function SnelleEvaluatie({ bedrijf, setBedrijf, csvData, setCsvData, onSluiten }) {
+  const [naam, setNaam] = useState(bedrijf.naam || "");
+  const [aanbod, setAanbod] = useState(bedrijf.aanbod || "");
+  const [handmatig, setHandmatig] = useState(csvData || "");
+  const [klaar, setKlaar] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [resultaat, setResultaat] = useState(null);
+  const [fout, setFout] = useState("");
+  const [actieTab, setActieTab] = useState("evaluatie");
+
+  const sector = detecteerSector(aanbod);
+  const playbook = sector ? SECTOR_PLAYBOOKS[sector] : null;
+
+  const handleCsv = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => { setHandmatig(ev.target.result); };
+    reader.readAsText(file, "UTF-8");
+  };
+
+  const starten = () => {
+    if (!naam.trim() || !aanbod.trim()) { setFout("Vul bedrijfsnaam en aanbod in."); return; }
+    setBedrijf(prev => ({ ...prev, naam, aanbod }));
+    if (handmatig) setCsvData(handmatig);
+    setKlaar(true);
+    setFout("");
+  };
+
+  const evalueer = async () => {
+    const data = handmatig.trim();
+    if (!data) { setFout("Voeg eerst campagnedata toe."); return; }
+    setLoading(true); setFout(""); setResultaat(null);
+    try {
+      const sectorCtx = playbook ? " Sector: " + playbook.label + ". Typische CPL: " + playbook.typisch_cpl + ". Typische CTR: " + playbook.typisch_ctr + "." : "";
+      const prompt = "Evalueer deze Meta Ads campagnedata voor " + naam + "."
+        + (aanbod ? " Aanbod: " + aanbod.substring(0, 100) + "." : "")
+        + sectorCtx
+        + " Data: " + data.substring(0, 2500)
+        + " Gebruik EXACT dit formaat:"
+        + " Eerst: OWNER SUMMARY op 3 aparte regels: 1. [doe vandaag] 2. [laat staan] 3. [los eerst op]"
+        + " Dan voor ELKE campagne/advertentie dit blok (alles op eigen regel):"
+        + " CAMPAGNE: [naam] BESLISSING: [STOP DIRECT of OPTIMALISEER of BLIJVEN LOPEN of OPSCHALEN] PRIORITEIT: [1 of 2 of 3] VERTROUWEN: [LAAG of MATIG of STERK] REDEN: [1-2 zinnen] CIJFERS: [metrics] ACTIE: [1 stap] ---"
+        + " Daarna: ===BUDGET GUARDIAN ===CREATIEVE FATIGUE SIGNALEN: [lijst] DIAGNOSE: [zin] NIEUWE HOOK: [voorstel] ===DAGELIJKSE SAMENVATTING"
+        + " Nederlands. Geen jargon.";
+      const raw = await callClaude("Je bent eerlijke Meta Ads coach. Gebruik het gevraagde formaat exact.", prompt, 1500);
+      setResultaat(raw);
+    } catch(e) { setFout("Fout: " + (e.message || "").substring(0, 120)); }
+    finally { setLoading(false); }
+  };
+
+  const downloadPdfSnel = () => {
+    if (!resultaat) return;
+    const blokken = parseerEvaluatie(resultaat);
+    // Reuse the same PDF logic - set bedrijf first
+    setBedrijf(prev => ({ ...prev, naam, aanbod }));
+    // Small delay then trigger download from Stap9
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(30,42,35,.7)", zIndex:200, display:"flex", alignItems:"flex-start", justifyContent:"center", overflowY:"auto", padding:"20px 16px" }}>
+      <div style={{ background:C.bg, borderRadius:20, width:"100%", maxWidth:760, boxShadow:"0 24px 80px rgba(0,0,0,.35)", marginTop:20, marginBottom:20 }}>
+
+        {/* Header */}
+        <div style={{ background:C.groen, borderRadius:"20px 20px 0 0", padding:"18px 28px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <span style={{ fontSize:22 }}>📊</span>
+            <div>
+              <div style={{ fontFamily:font.display, fontWeight:700, fontSize:18, color:"#fff" }}>Snelle Campagne Evaluatie</div>
+              <div style={{ fontFamily:font.body, fontSize:12, color:"rgba(255,255,255,.75)" }}>Upload je CSV en evalueer je lopende campagnes direct</div>
+            </div>
+          </div>
+          <button onClick={onSluiten} style={{ background:"rgba(255,255,255,.2)", border:"none", borderRadius:8, width:36, height:36, color:"#fff", fontSize:20, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:300 }}>×</button>
+        </div>
+
+        <div style={{ padding:"24px 28px" }}>
+
+          {!klaar ? (
+            <>
+              {/* Stap 1: Minimale bedrijfsinfo */}
+              <div style={{ background:C.card, borderRadius:12, border:`1px solid ${C.border}`, padding:"18px 22px", marginBottom:16 }}>
+                <div style={{ fontFamily:font.body, fontWeight:700, fontSize:12, color:C.groen, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:14 }}>① Bedrijfsinfo</div>
+                <Input label="Bedrijfsnaam" value={naam} onChange={setNaam} placeholder="bv. Ecofinity BV" />
+                <Input label="Aanbod (kort)" value={aanbod} onChange={setAanbod} placeholder="bv. Installatie warmtepompen en zonnepanelen" textarea rows={2} />
+                {sector && playbook && (
+                  <div style={{ background:C.groenLight, border:`1px solid ${C.borderGreen}`, borderRadius:8, padding:"8px 14px", fontSize:12, fontFamily:font.body, color:C.groen }}>
+                    📊 Sector herkend: <strong>{playbook.label}</strong> · Typische CPL: {playbook.typisch_cpl}
+                  </div>
+                )}
+              </div>
+
+              {/* Stap 2: CSV upload */}
+              <div style={{ background:C.card, borderRadius:12, border:`1px solid ${C.border}`, padding:"18px 22px", marginBottom:16 }}>
+                <div style={{ fontFamily:font.body, fontWeight:700, fontSize:12, color:C.groen, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:14 }}>② Campagnedata</div>
+                <div style={{ display:"flex", gap:12, marginBottom:12, flexWrap:"wrap" }}>
+                  <label style={{ display:"inline-flex", alignItems:"center", gap:8, background:C.groen, border:"none", borderRadius:9, padding:"10px 20px", color:"#fff", fontFamily:font.body, fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                    📂 Upload CSV
+                    <input type="file" accept=".csv,.txt" onChange={handleCsv} style={{ display:"none" }} />
+                  </label>
+                  {handmatig && <span style={{ fontFamily:font.body, fontSize:12, color:C.groen, display:"flex", alignItems:"center", gap:6 }}>✓ {handmatig.length} tekens geladen</span>}
+                </div>
+                <textarea
+                  value={handmatig}
+                  onChange={e => setHandmatig(e.target.value)}
+                  rows={5}
+                  placeholder="Of plak je data hier: Campagnenaam | Budget | Bereik | CTR | Resultaten"
+                  style={{ width:"100%", boxSizing:"border-box", padding:"10px 14px", borderRadius:10, border:`1px solid ${C.border}`, fontFamily:"monospace", fontSize:12, background:"#fafaf8", color:C.text, resize:"vertical" }}
+                />
+                <div style={{ marginTop:8, fontFamily:font.body, fontSize:11, color:C.muted }}>
+                  Exporteer uit Meta Ads Manager → Exporteer tabeldata (.csv) · Minimaal: campagnenaam, budget, bereik, klikken, CTR, resultaten
+                </div>
+              </div>
+
+              {fout && <div style={{ color:C.error, fontFamily:font.body, fontSize:13, marginBottom:12 }}>{fout}</div>}
+
+              <button onClick={starten} disabled={!naam.trim() || !aanbod.trim()}
+                style={{ background: naam.trim() && aanbod.trim() ? C.groen : C.border, border:"none", borderRadius:11, padding:"13px 28px", color: naam.trim() && aanbod.trim() ? "#fff" : C.muted, fontFamily:font.body, fontWeight:700, fontSize:15, cursor: naam.trim() && aanbod.trim() ? "pointer" : "not-allowed", width:"100%" }}>
+                Start evaluatie →
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Evaluatie resultaat */}
+              <div style={{ background:C.groenLight, border:`1px solid ${C.borderGreen}`, borderRadius:10, padding:"10px 16px", marginBottom:16, display:"flex", alignItems:"center", gap:10 }}>
+                <span style={{ fontFamily:font.body, fontWeight:700, fontSize:13, color:C.groen }}>📊 {naam}</span>
+                {sector && playbook && <span style={{ fontFamily:font.body, fontSize:12, color:C.muted }}>· {playbook.label} · CPL: {playbook.typisch_cpl}</span>}
+                <button onClick={() => setKlaar(false)} style={{ marginLeft:"auto", background:"transparent", border:`1px solid ${C.borderGreen}`, borderRadius:7, padding:"4px 12px", color:C.groen, fontFamily:font.body, fontSize:12, cursor:"pointer" }}>✏ Aanpassen</button>
+              </div>
+
+              {!resultaat && !loading && (
+                <div style={{ textAlign:"center", padding:"20px 0" }}>
+                  <p style={{ fontFamily:font.body, fontSize:14, color:C.muted, marginBottom:18, lineHeight:1.7 }}>
+                    Je data is klaar. Klik hieronder om je co-pilot de campagnes te laten analyseren.
+                  </p>
+                  <button onClick={evalueer} style={{ background:C.groen, border:"none", borderRadius:11, padding:"13px 32px", color:"#fff", fontFamily:font.body, fontWeight:700, fontSize:15, cursor:"pointer" }}>
+                    📊 Evalueer mijn campagnes
+                  </button>
+                </div>
+              )}
+
+              {loading && <Loader text="Co-pilot analyseert campagnes" stappen={[
+                { tekst:"Campagnedata inlezen…", klaar:false },
+                { tekst:"Vergelijken met sector-benchmarks…", klaar:false },
+                { tekst:"Beslissingen formuleren…", klaar:false },
+              ]} />}
+
+              {resultaat && !loading && (
+                <>
+                  <div style={{ display:"flex", gap:4, marginBottom:14, background:C.bgMid, borderRadius:12, padding:4 }}>
+                    {[{id:"evaluatie",label:"📊 Evaluatie"},{id:"tests",label:"🧪 Tests"}].map(tab => (
+                      <button key={tab.id} onClick={() => setActieTab(tab.id)} style={{ flex:1, padding:"9px 14px", borderRadius:9, border:"none", cursor:"pointer", background:actieTab===tab.id?C.card:"transparent", boxShadow:actieTab===tab.id?C.shadow:"none", fontFamily:font.body, fontWeight:600, fontSize:13, color:actieTab===tab.id?C.groen:C.muted }}>
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                  {actieTab === "evaluatie" && (
+                    <div style={{ background:C.card, borderRadius:14, border:`1px solid ${C.border}`, padding:"22px 26px" }}>
+                      {Stap9Render(resultaat, { naam, aanbod })}
+                    </div>
+                  )}
+                  <div style={{ marginTop:12, display:"flex", gap:10 }}>
+                    <button onClick={evalueer} style={{ background:C.groenLight, border:`1px solid ${C.borderGreen}`, borderRadius:9, padding:"9px 18px", color:C.groen, fontFamily:font.body, fontWeight:600, fontSize:13, cursor:"pointer" }}>↺ Opnieuw evalueren</button>
+                    <button onClick={onSluiten} style={{ background:C.bgMid, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 18px", color:C.textSoft, fontFamily:font.body, fontWeight:600, fontSize:13, cursor:"pointer" }}>Sluiten</button>
+                  </div>
+                </>
+              )}
+              {fout && <div style={{ color:C.error, fontFamily:font.body, fontSize:13, marginTop:10 }}>{fout}</div>}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Helper: render evaluatie output in SnelleEvaluatie context
+function Stap9Render(tekst, bedrijfMini) {
+  if (!tekst) return null;
+  const blokken = parseerEvaluatie(tekst);
+  const kleurMap = {
+    "STOP DIRECT":   { dot:"#CC2200", bg:"#FFF0F0", brd:"#F0B0B0", icoon:"🔴", label:"Stop direct" },
+    "OPTIMALISEER":  { dot:"#E08000", bg:"#FFF8E8", brd:"#F0D080", icoon:"🟡", label:"Optimaliseer" },
+    "BLIJVEN LOPEN": { dot:"#1A7A1A", bg:"#F0FFF0", brd:"#90D090", icoon:"🟢", label:"Blijven lopen" },
+    "OPSCHALEN":     { dot:"#1A3A9A", bg:"#F0F4FF", brd:"#90A8E8", icoon:"🚀", label:"Opschalen" },
+  };
+
+  const CampagneKaartMini = ({ blok }) => {
+    const kl = kleurMap[blok.beslissing || "BLIJVEN LOPEN"] || kleurMap["BLIJVEN LOPEN"];
+    const vertrTekst = blok.vertrouwen === "STERK" ? "✓ Voldoende data" : blok.vertrouwen === "MATIG" ? "~ Indicatief" : blok.vertrouwen === "LAAG" ? "⚠ Weinig data" : null;
+    const vertrKleur = blok.vertrouwen === "STERK" ? "#2C6E49" : blok.vertrouwen === "MATIG" ? "#8A6200" : "#B03A2E";
+    return (
+      <div style={{ borderRadius:12, marginBottom:18, overflow:"hidden", border:`2px solid ${kl.dot}` }}>
+        <div style={{ background:kl.bg, padding:"12px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10, borderBottom:`1.5px solid ${kl.brd}` }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ width:18, height:18, borderRadius:"50%", background:kl.dot, flexShrink:0 }} />
+            <span style={{ fontFamily:font.display, fontWeight:700, fontSize:15, color:C.text, textDecoration:"underline", textDecorationColor:kl.dot, textUnderlineOffset:4 }}>{blok.naam}</span>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:6, background:"white", border:`2px solid ${kl.dot}`, borderRadius:18, padding:"4px 12px" }}>
+            <span>{kl.icoon}</span>
+            <span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:kl.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl.label}</span>
+          </div>
+        </div>
+        <div style={{ background:"white" }}>
+          {(blok.reden || blok.cijfers) && (
+            <div style={{ padding:"11px 18px", borderBottom:`1px solid ${kl.brd}` }}>
+              <div style={{ fontFamily:font.body, fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:5 }}>Reden</div>
+              {blok.reden && <div style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.7, marginBottom:blok.cijfers?7:0 }}>{blok.reden}</div>}
+              {blok.cijfers && <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:kl.bg, border:`1px solid ${kl.brd}`, borderRadius:6, padding:"3px 10px", fontFamily:"monospace", fontSize:12, fontWeight:700, color:kl.dot }}>📊 {blok.cijfers}</div>}
+            </div>
+          )}
+          {blok.actie && (
+            <div style={{ padding:"11px 18px", background:"#EBF5EF", borderBottom:vertrTekst?`1px solid #A8D4B8`:"none", display:"flex", gap:10 }}>
+              <span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:C.groen, textTransform:"uppercase", letterSpacing:"1px", flexShrink:0, paddingTop:2 }}>→ Actie</span>
+              <span style={{ fontFamily:font.body, fontSize:13, color:C.groenDim, fontWeight:600, lineHeight:1.6 }}>{blok.actie}</span>
+            </div>
+          )}
+          {vertrTekst && <div style={{ padding:"5px 18px", display:"flex", gap:6 }}><span style={{ fontFamily:font.body, fontSize:11, color:vertrKleur, fontWeight:700 }}>{vertrTekst}</span></div>}
+        </div>
+      </div>
+    );
+  };
+
+  const nl = String.fromCharCode(10);
+  const punten = blokken.ownerSummary
+    ? blokken.ownerSummary.replace(/\s+([23])[.)]\s/g, nl+"$1. ").split(nl).map(p=>p.trim()).filter(p=>p.length>4&&!p.toUpperCase().startsWith("CAMPAGNE:")).slice(0,3)
+    : [];
+  const pCfg = [{num:"1",ic:"✅",lb:"Doe vandaag",kl:"#4ADE80"},{num:"2",ic:"🚫",lb:"Laat staan",kl:"#FCA5A5"},{num:"3",ic:"🔧",lb:"Los eerst op",kl:"#FCD34D"}];
+
+  return (
+    <div>
+      {punten.length > 0 && (
+        <div style={{ borderRadius:12, marginBottom:20, overflow:"hidden" }}>
+          <div style={{ background:C.groen, padding:"12px 20px", display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ fontSize:18 }}>🎯</span>
+            <span style={{ fontFamily:font.display, fontWeight:700, fontSize:14, color:"#fff", textTransform:"uppercase", letterSpacing:"2px" }}>Wat doe je vandaag?</span>
+          </div>
+          <div style={{ background:"#1A4A30", padding:"14px 18px", display:"flex", flexDirection:"column", gap:10 }}>
+            {punten.map((p, i) => {
+              const m = p.match(/^([1-9])[.):\s]/);
+              const num = m?m[1]:String(i+1);
+              const txt = p.replace(/^[1-9][.):\s]+/,"").trim();
+              const cfg = pCfg.find(c=>c.num===num)||pCfg[Math.min(i,2)];
+              return (
+                <div key={i} style={{ display:"flex", gap:12, alignItems:"flex-start", background:"rgba(255,255,255,.09)", borderRadius:9, padding:"10px 14px", borderLeft:`3px solid ${cfg.kl}` }}>
+                  <span style={{ fontSize:18, flexShrink:0 }}>{cfg.ic}</span>
+                  <div>
+                    <div style={{ fontFamily:font.body, fontWeight:700, fontSize:10, color:cfg.kl, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:3 }}>{cfg.lb}</div>
+                    <div style={{ fontFamily:font.body, fontSize:13, color:"rgba(255,255,255,.92)", lineHeight:1.7 }}>{txt}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {blokken.campagnes.length > 0 && (
+        <>
+          <div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:12 }}>
+            {blokken.campagnes.length} campagne{blokken.campagnes.length!==1?"s":""} — op prioriteit
+          </div>
+          {blokken.campagnes.map((blok, i) => <CampagneKaartMini key={i} blok={blok} />)}
+        </>
+      )}
+    </div>
+  );
+}
+
+
 // ─── TRIAL MECHANISME ────────────────────────────────────────────────────────
 
 function TrialBanner({ trialActief, trialGebruikt, stapBereikt, onReset }) {
@@ -3821,6 +4105,7 @@ export default function App() {
   const [combinaties, setCombinaties] = useState([]);
   const [campagne, setCampagne] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
+  const [snelModus, setSnelModus] = useState(false); // snelle evaluatie zonder wizard
   const [stap8Open, setStap8Open] = useState(false);
   const [csvData, setCsvData] = useState("");
 
@@ -3857,6 +4142,9 @@ export default function App() {
                 {bedrijf.naam}
               </div>
             )}
+            <button onClick={() => setSnelModus(true)} style={{ background:"rgba(255,255,255,.18)", border:"1.5px solid rgba(255,255,255,.35)", borderRadius:8, padding:"7px 16px", color:"#fff", fontFamily:font.body, fontWeight:700, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+              <span>📊</span> Evalueer campagnes
+            </button>
           </div>
         </div>
       </div>
@@ -3897,7 +4185,7 @@ export default function App() {
         {/* Normale app — alleen tonen als trial niet geblokkeerd */}
         {(!trialGebruikt || trialActief) && <>
         <ProgressBar stap={stap} />
-        {stap === 1 && <Stap1 data={bedrijf} setData={setBedrijf} onNext={() => setStap(2)} onHelp={() => setHelpOpen(true)} />}
+        {stap === 1 && !snelModus && <Stap1 data={bedrijf} setData={setBedrijf} onNext={() => setStap(2)} onHelp={() => setHelpOpen(true)} onSnelEvaluatie={() => setSnelModus(true)} />}
         {stap === 2 && <Stap2 bedrijf={bedrijf} onCsvData={setCsvData} onNext={segs => { setSegmenten(segs); setStap(3); }} onHelp={() => setHelpOpen(true)} onBack={() => setStap(1)} />}
         {stap === 3 && <Stap3 bedrijf={bedrijf} segmenten={segmenten} setSegmenten={setSegmenten} onNext={pp => { setPijnpunten(pp); setStap(4); }} onHelp={() => setHelpOpen(true)} onBack={() => setStap(2)} />}
         {stap === 4 && <Stap4 pijnpunten={pijnpunten} gekozen={gekozenPijnpunten} setGekozen={setGekozenPijnpunten} onNext={() => setStap(5)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} onBack={() => setStap(3)} />}
@@ -3906,6 +4194,7 @@ export default function App() {
         {stap === 7 && <Stap7 bedrijf={bedrijf} segmenten={segmenten} pijnpunten={pijnpunten} combinaties={combinaties} campagne={campagne} onBack={() => setStap(6)} onHelp={() => setHelpOpen(true)} onNaarMeta={() => setStap(8)} />}
         {stap === 8 && <Stap8 onBack={() => setStap(7)} onNaarEvaluatie={() => setStap(9)} />}
         {stap === 9 && <Stap9 bedrijf={bedrijf} csvData={csvData} onBack={() => setStap(8)} onTrialVoltooid={markeerTrialGebruikt} />}
+        {snelModus && <SnelleEvaluatie bedrijf={bedrijf} setBedrijf={setBedrijf} csvData={csvData} setCsvData={setCsvData} onSluiten={() => setSnelModus(false)} />}
         </>}
       </div>
 
