@@ -3716,6 +3716,30 @@ function Stap9({ bedrijf, csvData, onBack, onTrialVoltooid }) {
 // ─── SNELLE EVALUATIE ─────────────────────────────────────────────────────────
 // Overlay: enkel naam + aanbod invullen + CSV uploaden → meteen evalueren
 
+// ─── EVALUATIE INHOUD ─────────────────────────────────────────────────────────
+function EvaluatieInhoud({ resultaat }) {
+  if (!resultaat) return <div style={{ fontFamily:font.body, fontSize:13, color:C.muted, padding:"20px", textAlign:"center" }}>Geen resultaat.</div>;
+  const klM = {"STOP DIRECT":{dot:"#CC2200",bg:"#FFF0F0",brd:"#F0B0B0",ic:"🔴",lb:"Stop direct"},"OPTIMALISEER":{dot:"#E08000",bg:"#FFF8E8",brd:"#F0D080",ic:"🟡",lb:"Optimaliseer"},"BLIJVEN LOPEN":{dot:"#1A7A1A",bg:"#F0FFF0",brd:"#90D090",ic:"🟢",lb:"Blijven lopen"},"OPSCHALEN":{dot:"#1A3A9A",bg:"#F0F4FF",brd:"#90A8E8",ic:"🚀",lb:"Opschalen"}};
+  let blokken = {campagnes:[],ownerSummary:"",guardian:""};
+  try { blokken = parseerEvaluatie(resultaat); } catch(e) {}
+  const nl = String.fromCharCode(10);
+  const pc = [{num:"1",ic:"✅",lb:"Doe vandaag",kl:"#4ADE80"},{num:"2",ic:"🚫",lb:"Laat staan",kl:"#FCA5A5"},{num:"3",ic:"🔧",lb:"Los eerst op",kl:"#FCD34D"}];
+  const ownerPunten = blokken.ownerSummary
+    ? blokken.ownerSummary.split(nl).map(p=>p.trim()).filter(p=>p.length>4&&!p.toUpperCase().startsWith("CAMPAGNE:")&&!p.toUpperCase().startsWith("BESLISSING:")).slice(0,3)
+    : [];
+  if (blokken.campagnes.length===0 && ownerPunten.length===0) {
+    return <div style={{fontFamily:font.body,fontSize:13,color:C.textSoft,lineHeight:1.85,whiteSpace:"pre-wrap"}}>{resultaat}</div>;
+  }
+  return (
+    <div>
+      {ownerPunten.length>0&&(<div style={{borderRadius:12,marginBottom:20,overflow:"hidden"}}><div style={{background:C.groen,padding:"12px 20px",display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:18}}>🎯</span><span style={{fontFamily:font.display,fontWeight:700,fontSize:14,color:"#fff",textTransform:"uppercase",letterSpacing:"2px"}}>Wat doe je vandaag?</span></div><div style={{background:"#1A4A30",padding:"14px 18px",display:"flex",flexDirection:"column",gap:10}}>{ownerPunten.map((p,i)=>{const m=p.match(/^([1-9])[.):\s]/);const num=m?m[1]:String(i+1);const txt=p.replace(/^[1-9][.):\s]+/,"").trim();const cfg=pc.find(c=>c.num===num)||pc[Math.min(i,2)];return(<div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",background:"rgba(255,255,255,.09)",borderRadius:9,padding:"10px 14px",borderLeft:`3px solid ${cfg.kl}`}}><span style={{fontSize:18,flexShrink:0}}>{cfg.ic}</span><div><div style={{fontFamily:font.body,fontWeight:700,fontSize:10,color:cfg.kl,textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:3}}>{cfg.lb}</div><div style={{fontFamily:font.body,fontSize:13,color:"rgba(255,255,255,.92)",lineHeight:1.7}}>{txt}</div></div></div>);})}</div></div>)}
+      {blokken.campagnes.length>0&&(<><div style={{fontFamily:font.body,fontWeight:700,fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:"1px",marginBottom:12}}>{blokken.campagnes.length} campagne{blokken.campagnes.length!==1?"s":""} — op prioriteit</div>{blokken.campagnes.map((blok,ci)=>{const kl=klM[blok.beslissing||"BLIJVEN LOPEN"]||klM["BLIJVEN LOPEN"];const vt=blok.vertrouwen==="STERK"?"✓ Voldoende data":blok.vertrouwen==="MATIG"?"~ Indicatief":blok.vertrouwen==="LAAG"?"⚠ Weinig data":null;const vk=blok.vertrouwen==="STERK"?C.groen:blok.vertrouwen==="MATIG"?"#8A6200":"#B03A2E";return(<div key={ci} style={{borderRadius:12,marginBottom:18,overflow:"hidden",border:`2px solid ${kl.dot}`}}><div style={{background:kl.bg,padding:"12px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10,borderBottom:`1.5px solid ${kl.brd}`}}><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:18,height:18,borderRadius:"50%",background:kl.dot,flexShrink:0}}/><span style={{fontFamily:font.display,fontWeight:700,fontSize:15,color:C.text,textDecoration:"underline",textDecorationColor:kl.dot,textUnderlineOffset:4}}>{blok.naam||"Campagne"}</span></div><div style={{display:"flex",alignItems:"center",gap:6,background:"white",border:`2px solid ${kl.dot}`,borderRadius:18,padding:"4px 12px"}}><span>{kl.ic}</span><span style={{fontFamily:font.body,fontWeight:800,fontSize:11,color:kl.dot,textTransform:"uppercase",letterSpacing:"1.5px"}}>{kl.lb}</span></div></div><div style={{background:"white"}}>{(blok.reden||blok.cijfers)&&<div style={{padding:"11px 18px",borderBottom:`1px solid ${kl.brd}`}}><div style={{fontFamily:font.body,fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:5}}>Reden</div>{blok.reden&&<div style={{fontFamily:font.body,fontSize:13,color:C.textSoft,lineHeight:1.7,marginBottom:blok.cijfers?7:0}}>{blok.reden}</div>}{blok.cijfers&&<div style={{display:"inline-flex",alignItems:"center",gap:6,background:kl.bg,border:`1px solid ${kl.brd}`,borderRadius:6,padding:"3px 10px",fontFamily:"monospace",fontSize:12,fontWeight:700,color:kl.dot}}>📊 {blok.cijfers}</div>}</div>}{blok.actie&&<div style={{padding:"11px 18px",background:"#EBF5EF",borderBottom:vt?`1px solid #A8D4B8`:"none",display:"flex",gap:10}}><span style={{fontFamily:font.body,fontWeight:800,fontSize:11,color:C.groen,textTransform:"uppercase",letterSpacing:"1px",flexShrink:0}}>→ Actie</span><span style={{fontFamily:font.body,fontSize:13,color:C.groenDim,fontWeight:600,lineHeight:1.6}}>{blok.actie}</span></div>}{vt&&<div style={{padding:"5px 18px"}}><span style={{fontFamily:font.body,fontSize:11,color:vk,fontWeight:700}}>{vt}</span></div>}</div></div>);})}</>)}
+      {blokken.guardian&&<div style={{marginTop:16,background:"#FFF8F0",border:"1.5px solid #F0D0A0",borderRadius:10,padding:"14px 18px"}}><div style={{fontFamily:font.body,fontWeight:700,fontSize:11,color:"#b05000",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:8}}>🛡️ Budget Guardian</div><div style={{fontFamily:font.body,fontSize:13,color:"#5A3000",lineHeight:1.8,whiteSpace:"pre-wrap"}}>{blokken.guardian}</div></div>}
+    </div>
+  );
+}
+
+
 function SnelleEvaluatie({ bedrijf, setBedrijf, csvData, setCsvData, onSluiten }) {
   const [naam, setNaam] = useState(bedrijf.naam || "");
   const [aanbod, setAanbod] = useState(bedrijf.aanbod || "");
@@ -3871,42 +3895,19 @@ function SnelleEvaluatie({ bedrijf, setBedrijf, csvData, setCsvData, onSluiten }
                       </button>
                     ))}
                   </div>
-                  {actieTab === "evaluatie" && (() => {
-                    const bl = parseerEvaluatie(resultaat || "");
-                    const klM2 = {"STOP DIRECT":{dot:"#CC2200",bg:"#FFF0F0",brd:"#F0B0B0",ic:"🔴",lb:"Stop direct"},"OPTIMALISEER":{dot:"#E08000",bg:"#FFF8E8",brd:"#F0D080",ic:"🟡",lb:"Optimaliseer"},"BLIJVEN LOPEN":{dot:"#1A7A1A",bg:"#F0FFF0",brd:"#90D090",ic:"🟢",lb:"Blijven lopen"},"OPSCHALEN":{dot:"#1A3A9A",bg:"#F0F4FF",brd:"#90A8E8",ic:"🚀",lb:"Opschalen"}};
-                    const nl2 = String.fromCharCode(10);
-                    const op2 = bl.ownerSummary ? bl.ownerSummary.replace(/\s+([23])[.)]\s/g, nl2+"$1. ").split(nl2).map(p=>p.trim()).filter(p=>p.length>4&&!p.toUpperCase().startsWith("CAMPAGNE:")&&!p.toUpperCase().startsWith("BESLISSING:")).slice(0,3) : [];
-                    const pc2 = [{num:"1",ic:"✅",lb:"Doe vandaag",kl:"#4ADE80"},{num:"2",ic:"🚫",lb:"Laat staan",kl:"#FCA5A5"},{num:"3",ic:"🔧",lb:"Los eerst op",kl:"#FCD34D"}];
-                    return (
-                      <div style={{ background:C.card, borderRadius:14, border:`1px solid ${C.border}`, padding:"22px 26px" }}>
-                        {/* Fallback als parsing leeg is */}
-                        {bl.campagnes.length === 0 && op2.length === 0 && (
-                          <div style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.8, whiteSpace:"pre-wrap" }}>{resultaat}</div>
-                        )}
-                        {/* Wat doe je vandaag */}
-                        {op2.length > 0 && (
-                          <div style={{ borderRadius:12, marginBottom:20, overflow:"hidden" }}>
-                            <div style={{ background:C.groen, padding:"12px 20px", display:"flex", alignItems:"center", gap:8 }}>
-                              <span style={{ fontSize:18 }}>🎯</span>
-                              <span style={{ fontFamily:font.display, fontWeight:700, fontSize:14, color:"#fff", textTransform:"uppercase", letterSpacing:"2px" }}>Wat doe je vandaag?</span>
-                            </div>
-                            <div style={{ background:"#1A4A30", padding:"14px 18px", display:"flex", flexDirection:"column", gap:10 }}>
-                              {op2.map((p, pi) => { const mm=p.match(/^([1-9])[.):\s]/); const nn=mm?mm[1]:String(pi+1); const tt=p.replace(/^[1-9][.):\s]+/,"").trim(); const cc=pc2.find(c=>c.num===nn)||pc2[Math.min(pi,2)]; return (<div key={pi} style={{ display:"flex", gap:12, alignItems:"flex-start", background:"rgba(255,255,255,.09)", borderRadius:9, padding:"10px 14px", borderLeft:`3px solid ${cc.kl}` }}><span style={{ fontSize:18, flexShrink:0 }}>{cc.ic}</span><div><div style={{ fontFamily:font.body, fontWeight:700, fontSize:10, color:cc.kl, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:3 }}>{cc.lb}</div><div style={{ fontFamily:font.body, fontSize:13, color:"rgba(255,255,255,.92)", lineHeight:1.7 }}>{tt}</div></div></div>); })}
-                            </div>
-                          </div>
-                        )}
-                        {/* Campagnes */}
-                        {bl.campagnes.length > 0 && <>
-                          <div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:12 }}>{bl.campagnes.length} campagne{bl.campagnes.length!==1?"s":""} — op prioriteit</div>
-                          {bl.campagnes.map((blok, ci) => { const kl2=klM2[blok.beslissing||"BLIJVEN LOPEN"]||klM2["BLIJVEN LOPEN"]; const vt=blok.vertrouwen==="STERK"?"✓ Voldoende data":blok.vertrouwen==="MATIG"?"~ Indicatief":blok.vertrouwen==="LAAG"?"⚠ Weinig data":null; const vk=blok.vertrouwen==="STERK"?C.groen:blok.vertrouwen==="MATIG"?"#8A6200":"#B03A2E"; return (<div key={ci} style={{ borderRadius:12, marginBottom:18, overflow:"hidden", border:`2px solid ${kl2.dot}` }}><div style={{ background:kl2.bg, padding:"12px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10, borderBottom:`1.5px solid ${kl2.brd}` }}><div style={{ display:"flex", alignItems:"center", gap:10 }}><div style={{ width:18, height:18, borderRadius:"50%", background:kl2.dot }} /><span style={{ fontFamily:font.display, fontWeight:700, fontSize:15, color:C.text, textDecoration:"underline", textDecorationColor:kl2.dot, textUnderlineOffset:4 }}>{blok.naam||"Campagne"}</span></div><div style={{ display:"flex", alignItems:"center", gap:6, background:"white", border:`2px solid ${kl2.dot}`, borderRadius:18, padding:"4px 12px" }}><span>{kl2.ic}</span><span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:kl2.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl2.lb}</span></div></div><div style={{ background:"white" }}>{(blok.reden||blok.cijfers)&&<div style={{ padding:"11px 18px", borderBottom:`1px solid ${kl2.brd}` }}><div style={{ fontFamily:font.body, fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:5 }}>Reden</div>{blok.reden&&<div style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.7, marginBottom:blok.cijfers?7:0 }}>{blok.reden}</div>}{blok.cijfers&&<div style={{ display:"inline-flex", alignItems:"center", gap:6, background:kl2.bg, border:`1px solid ${kl2.brd}`, borderRadius:6, padding:"3px 10px", fontFamily:"monospace", fontSize:12, fontWeight:700, color:kl2.dot }}>📊 {blok.cijfers}</div>}</div>}{blok.actie&&<div style={{ padding:"11px 18px", background:"#EBF5EF", borderBottom:vt?`1px solid #A8D4B8`:"none", display:"flex", gap:10 }}><span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:C.groen, textTransform:"uppercase", letterSpacing:"1px", flexShrink:0 }}>→ Actie</span><span style={{ fontFamily:font.body, fontSize:13, color:C.groenDim, fontWeight:600, lineHeight:1.6 }}>{blok.actie}</span></div>}{vt&&<div style={{ padding:"5px 18px" }}><span style={{ fontFamily:font.body, fontSize:11, color:vk, fontWeight:700 }}>{vt}</span></div>}</div></div>); })}
-                        </>}
+                  {actieTab === "evaluatie" && (
+                    <EvaluatieInhoud resultaat={resultaat} />
+                  )}
+
+
+                  {actieTab === "tests" && (
+                    <div style={{ background:C.card, borderRadius:14, border:`1px solid ${C.border}`, padding:"22px 26px" }}>
+                      <div style={{ fontFamily:font.body, fontSize:13, color:C.muted, lineHeight:1.7 }}>
+                        Genereer A/B-testvoorstellen op basis van je campagnedata via de volledige wizard (Stap 9 → Tests tab).
                       </div>
-                    );
-                  })()}
-                  <div style={{ marginTop:12, display:"flex", gap:10 }}>
-                    <button onClick={evalueer} style={{ background:C.groenLight, border:`1px solid ${C.borderGreen}`, borderRadius:9, padding:"9px 18px", color:C.groen, fontFamily:font.body, fontWeight:600, fontSize:13, cursor:"pointer" }}>↺ Opnieuw evalueren</button>
-                    <button onClick={onSluiten} style={{ background:C.bgMid, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 18px", color:C.textSoft, fontFamily:font.body, fontWeight:600, fontSize:13, cursor:"pointer" }}>Sluiten</button>
-                  </div>
+                    </div>
+                  )}
+
                 </>
               )}
               {fout && <div style={{ color:C.error, fontFamily:font.body, fontSize:13, marginTop:10 }}>{fout}</div>}
@@ -3914,94 +3915,6 @@ function SnelleEvaluatie({ bedrijf, setBedrijf, csvData, setCsvData, onSluiten }
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-// Helper: render evaluatie output in SnelleEvaluatie context
-function Stap9Render({ resultaat: tekst, naam, aanbod }) {
-  if (!tekst) return null;
-  const blokken = parseerEvaluatie(tekst);
-  const klM = {
-    "STOP DIRECT":   { dot:"#CC2200", bg:"#FFF0F0", brd:"#F0B0B0", icoon:"🔴", label:"Stop direct" },
-    "OPTIMALISEER":  { dot:"#E08000", bg:"#FFF8E8", brd:"#F0D080", icoon:"🟡", label:"Optimaliseer" },
-    "BLIJVEN LOPEN": { dot:"#1A7A1A", bg:"#F0FFF0", brd:"#90D090", icoon:"🟢", label:"Blijven lopen" },
-    "OPSCHALEN":     { dot:"#1A3A9A", bg:"#F0F4FF", brd:"#90A8E8", icoon:"🚀", label:"Opschalen" },
-  };
-  const nl = String.fromCharCode(10);
-  const pCfg = [{num:"1",ic:"✅",lb:"Doe vandaag",kl:"#4ADE80"},{num:"2",ic:"🚫",lb:"Laat staan",kl:"#FCA5A5"},{num:"3",ic:"🔧",lb:"Los eerst op",kl:"#FCD34D"}];
-  const punten = blokken.ownerSummary
-    ? blokken.ownerSummary.replace(/\s+([23])[.)]\s/g, nl+"$1. ").split(nl).map(p=>p.trim())
-        .filter(p=>p.length>4&&!p.toUpperCase().startsWith("CAMPAGNE:")&&!p.toUpperCase().startsWith("BESLISSING:")).slice(0,3)
-    : [];
-  return (
-    <div>
-      {punten.length > 0 && (
-        <div style={{ borderRadius:12, marginBottom:20, overflow:"hidden" }}>
-          <div style={{ background:C.groen, padding:"12px 20px", display:"flex", alignItems:"center", gap:8 }}>
-            <span style={{ fontSize:18 }}>🎯</span>
-            <span style={{ fontFamily:font.display, fontWeight:700, fontSize:14, color:"#fff", textTransform:"uppercase", letterSpacing:"2px" }}>Wat doe je vandaag?</span>
-          </div>
-          <div style={{ background:"#1A4A30", padding:"14px 18px", display:"flex", flexDirection:"column", gap:10 }}>
-            {punten.map((p, i) => {
-              const m = p.match(/^([1-9])[.):\s]/); const num = m?m[1]:String(i+1);
-              const txt = p.replace(/^[1-9][.):\s]+/,"").trim();
-              const cfg = pCfg.find(c=>c.num===num)||pCfg[Math.min(i,2)];
-              return (
-                <div key={i} style={{ display:"flex", gap:12, alignItems:"flex-start", background:"rgba(255,255,255,.09)", borderRadius:9, padding:"10px 14px", borderLeft:`3px solid ${cfg.kl}` }}>
-                  <span style={{ fontSize:18, flexShrink:0 }}>{cfg.ic}</span>
-                  <div>
-                    <div style={{ fontFamily:font.body, fontWeight:700, fontSize:10, color:cfg.kl, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:3 }}>{cfg.lb}</div>
-                    <div style={{ fontFamily:font.body, fontSize:13, color:"rgba(255,255,255,.92)", lineHeight:1.7 }}>{txt}</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      {/* Fallback: toon ruwe tekst als parsing niets oplevert */}
-      {blokken.campagnes.length === 0 && punten.length === 0 && (
-        <div style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.8, whiteSpace:"pre-wrap", background:C.bgMid, borderRadius:10, padding:"16px 20px" }}>{tekst}</div>
-      )}
-
-      {blokken.campagnes.length > 0 && (
-        <>
-          <div style={{ fontFamily:font.body, fontWeight:700, fontSize:11, color:C.muted, textTransform:"uppercase", letterSpacing:"1px", marginBottom:12 }}>
-            {blokken.campagnes.length} campagne{blokken.campagnes.length!==1?"s":""} — op prioriteit
-          </div>
-          {blokken.campagnes.map((blok, ci) => {
-            const kl = klM[blok.beslissing||"BLIJVEN LOPEN"]||klM["BLIJVEN LOPEN"];
-            const vertrTxt = blok.vertrouwen==="STERK"?"✓ Voldoende data":blok.vertrouwen==="MATIG"?"~ Indicatief":blok.vertrouwen==="LAAG"?"⚠ Weinig data":null;
-            const vertrKl = blok.vertrouwen==="STERK"?C.groen:blok.vertrouwen==="MATIG"?"#8A6200":"#B03A2E";
-            return (
-              <div key={ci} style={{ borderRadius:12, marginBottom:18, overflow:"hidden", border:`2px solid ${kl.dot}` }}>
-                <div style={{ background:kl.bg, padding:"12px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10, borderBottom:`1.5px solid ${kl.brd}` }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                    <div style={{ width:18, height:18, borderRadius:"50%", background:kl.dot }} />
-                    <span style={{ fontFamily:font.display, fontWeight:700, fontSize:15, color:C.text, textDecoration:"underline", textDecorationColor:kl.dot, textUnderlineOffset:4 }}>{blok.naam}</span>
-                  </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:6, background:"white", border:`2px solid ${kl.dot}`, borderRadius:18, padding:"4px 12px" }}>
-                    <span>{kl.icoon}</span>
-                    <span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:kl.dot, textTransform:"uppercase", letterSpacing:"1.5px" }}>{kl.label}</span>
-                  </div>
-                </div>
-                <div style={{ background:"white" }}>
-                  {(blok.reden||blok.cijfers) && (
-                    <div style={{ padding:"11px 18px", borderBottom:`1px solid ${kl.brd}` }}>
-                      <div style={{ fontFamily:font.body, fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:5 }}>Reden</div>
-                      {blok.reden&&<div style={{ fontFamily:font.body, fontSize:13, color:C.textSoft, lineHeight:1.7, marginBottom:blok.cijfers?7:0 }}>{blok.reden}</div>}
-                      {blok.cijfers&&<div style={{ display:"inline-flex", alignItems:"center", gap:6, background:kl.bg, border:`1px solid ${kl.brd}`, borderRadius:6, padding:"3px 10px", fontFamily:"monospace", fontSize:12, fontWeight:700, color:kl.dot }}>📊 {blok.cijfers}</div>}
-                    </div>
-                  )}
-                  {blok.actie&&<div style={{ padding:"11px 18px", background:"#EBF5EF", borderBottom:vertrTxt?`1px solid #A8D4B8`:"none", display:"flex", gap:10 }}><span style={{ fontFamily:font.body, fontWeight:800, fontSize:11, color:C.groen, textTransform:"uppercase", letterSpacing:"1px", flexShrink:0 }}>→ Actie</span><span style={{ fontFamily:font.body, fontSize:13, color:C.groenDim, fontWeight:600, lineHeight:1.6 }}>{blok.actie}</span></div>}
-                  {vertrTxt&&<div style={{ padding:"5px 18px" }}><span style={{ fontFamily:font.body, fontSize:11, color:vertrKl, fontWeight:700 }}>{vertrTxt}</span></div>}
-                </div>
-              </div>
-            );
-          })}
-        </>
-      )}
     </div>
   );
 }
@@ -4033,7 +3946,6 @@ function TrialBanner({ trialActief, trialGebruikt, stapBereikt, onReset }) {
     </div>
   );
 
-  // Trial actief en nog niet gebruikt
   const pct = Math.min(100, Math.round(((stapBereikt - 1) / 9) * 100));
   return (
     <div style={{ background:"linear-gradient(90deg,#4A1A8A,#7B3FD0)", borderBottom:"3px solid #C8A8F0", padding:"12px 28px", position:"sticky", top:64, zIndex:99 }}>
@@ -4062,19 +3974,26 @@ function TrialBanner({ trialActief, trialGebruikt, stapBereikt, onReset }) {
 export default function App() {
   const [stap, setStap] = useState(1);
   const [bedrijf, setBedrijf] = useState({ naam: "", url: "", aanbod: "", locatie: "" });
-  // Trial mechanisme
+  const [segmenten, setSegmenten] = useState(FALLBACK_SEGMENTEN);
+  const [pijnpunten, setPijnpunten] = useState(FALLBACK_PIJNPUNTEN);
+  const [gekozenPijnpunten, setGekozenPijnpunten] = useState([]);
+  const [combinaties, setCombinaties] = useState([]);
+  const [campagne, setCampagne] = useState("");
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [stap8Open, setStap8Open] = useState(false);
+  const [csvData, setCsvData] = useState("");
+  const [snelModus, setSnelModus] = useState(false);
+
   const [trialActief, setTrialActief] = useState(false);
   const [trialGebruikt, setTrialGebruikt] = useState(false);
 
   useEffect(() => {
-    // Detecteer ?trial=1 na mount (werkt in alle browsers)
     try {
       const search = window.location.search || "";
       const href = window.location.href || "";
       const isTrial = search.includes("trial=1") || href.includes("trial=1");
       setTrialActief(isTrial);
     } catch { /* */ }
-    // Controleer localStorage
     try {
       if (localStorage.getItem("mab_trial_used") === "1") setTrialGebruikt(true);
     } catch { /* */ }
@@ -4088,15 +4007,6 @@ export default function App() {
     try { localStorage.setItem("mab_trial_used", "1"); } catch { /* */ }
     setTrialGebruikt(true);
   };
-  const [segmenten, setSegmenten] = useState(FALLBACK_SEGMENTEN);
-  const [pijnpunten, setPijnpunten] = useState(FALLBACK_PIJNPUNTEN);
-  const [gekozenPijnpunten, setGekozenPijnpunten] = useState([]);
-  const [combinaties, setCombinaties] = useState([]);
-  const [campagne, setCampagne] = useState("");
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [snelModus, setSnelModus] = useState(false); // snelle evaluatie zonder wizard
-  const [stap8Open, setStap8Open] = useState(false);
-  const [csvData, setCsvData] = useState("");
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: font.body }}>
@@ -4115,6 +4025,17 @@ export default function App() {
 
       <HelpDrawer stap={stap} bedrijf={bedrijf} open={helpOpen} onClose={() => setHelpOpen(false)} />
       <ApiKeyBanner />
+
+      {/* Snelle evaluatie overlay */}
+      {snelModus && (
+        <SnelleEvaluatie
+          bedrijf={bedrijf}
+          setBedrijf={setBedrijf}
+          csvData={csvData}
+          setCsvData={setCsvData}
+          onSluiten={() => setSnelModus(false)}
+        />
+      )}
 
       <div style={{ background: "#2C6E49", borderBottom: "1px solid #1D4D33", padding: "0 28px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 4px 24px rgba(30,42,35,.3)" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
@@ -4138,24 +4059,21 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── Trial Banner — altijd zichtbaar direct onder nav ── */}
+      {/* Trial banner */}
       {(trialActief || trialGebruikt) && (
-        <TrialBanner
-          trialActief={trialActief}
-          trialGebruikt={trialGebruikt}
-          stapBereikt={stap}
-          onReset={resetTrial}
-        />
+        <TrialBanner trialActief={trialActief} trialGebruikt={trialGebruikt} stapBereikt={stap} onReset={resetTrial} />
       )}
 
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 80px" }}>
+        <ProgressBar stap={stap} />
+
         {/* Trial geblokkeerd */}
         {trialGebruikt && !trialActief && (
           <div style={{ background:"#fff", borderRadius:16, border:`2px solid ${C.groen}`, padding:"48px 36px", textAlign:"center", marginTop:20, boxShadow:C.shadowMd }}>
             <div style={{ fontSize:48, marginBottom:16 }}>🎉</div>
             <h2 style={{ fontFamily:font.display, fontWeight:800, fontSize:28, color:C.text, marginBottom:12 }}>Je gratis proefrun is voltooid!</h2>
             <p style={{ fontFamily:font.body, fontSize:16, color:C.muted, maxWidth:500, margin:"0 auto 28px", lineHeight:1.7 }}>
-              Je hebt de volledige Meta Ads Co-pilot ervaren. Upgrade nu voor onbeperkt gebruik en ontdek alles wat je mist.
+              Je hebt de volledige Meta Ads Co-pilot ervaren. Upgrade nu voor onbeperkt gebruik.
             </p>
             <div style={{ display:"flex", gap:12, justifyContent:"center", flexWrap:"wrap", marginBottom:24 }}>
               <a href="https://verdify.eu" target="_blank" rel="noopener" style={{ background:C.groen, color:"#fff", fontFamily:font.body, fontWeight:700, fontSize:15, padding:"14px 32px", borderRadius:10, textDecoration:"none", display:"inline-block" }}>
@@ -4165,25 +4083,21 @@ export default function App() {
                 ↺ Nog een keer proberen
               </button>
             </div>
-            <div style={{ fontFamily:font.body, fontSize:13, color:C.muted }}>
-              Vanaf €19/maand · Geen creditcard nodig om te starten
-            </div>
+            <div style={{ fontFamily:font.body, fontSize:13, color:C.muted }}>Vanaf €19/maand · Geen creditcard nodig</div>
           </div>
         )}
 
-        {/* Normale app — alleen tonen als trial niet geblokkeerd */}
         {(!trialGebruikt || trialActief) && <>
-        <ProgressBar stap={stap} />
-        {stap === 1 && !snelModus && <Stap1 data={bedrijf} setData={setBedrijf} onNext={() => setStap(2)} onHelp={() => setHelpOpen(true)} onSnelEvaluatie={() => setSnelModus(true)} />}
-        {stap === 2 && <Stap2 bedrijf={bedrijf} onCsvData={setCsvData} onNext={segs => { setSegmenten(segs); setStap(3); }} onHelp={() => setHelpOpen(true)} onBack={() => setStap(1)} />}
-        {stap === 3 && <Stap3 bedrijf={bedrijf} segmenten={segmenten} setSegmenten={setSegmenten} onNext={pp => { setPijnpunten(pp); setStap(4); }} onHelp={() => setHelpOpen(true)} onBack={() => setStap(2)} />}
-        {stap === 4 && <Stap4 pijnpunten={pijnpunten} gekozen={gekozenPijnpunten} setGekozen={setGekozenPijnpunten} onNext={() => setStap(5)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} onBack={() => setStap(3)} />}
-        {stap === 5 && <Stap5 segmenten={segmenten} pijnpunten={pijnpunten} gekozenPijnpunten={gekozenPijnpunten} combinaties={combinaties} setCombinaties={setCombinaties} onNext={() => setStap(6)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} />}
-        {stap === 6 && <Stap6 bedrijf={bedrijf} combinaties={combinaties} segmenten={segmenten} pijnpunten={pijnpunten} onNext={c => { setCampagne(c); setStap(7); }} onBack={() => setStap(5)} onHelp={() => setHelpOpen(true)} />}
-        {stap === 7 && <Stap7 bedrijf={bedrijf} segmenten={segmenten} pijnpunten={pijnpunten} combinaties={combinaties} campagne={campagne} onBack={() => setStap(6)} onHelp={() => setHelpOpen(true)} onNaarMeta={() => setStap(8)} />}
-        {stap === 8 && <Stap8 onBack={() => setStap(7)} onNaarEvaluatie={() => setStap(9)} />}
-        {stap === 9 && <Stap9 bedrijf={bedrijf} csvData={csvData} onBack={() => setStap(8)} onTrialVoltooid={markeerTrialGebruikt} />}
-        {snelModus && <SnelleEvaluatie bedrijf={bedrijf} setBedrijf={setBedrijf} csvData={csvData} setCsvData={setCsvData} onSluiten={() => setSnelModus(false)} />}
+          <ProgressBar stap={stap} />
+          {stap === 1 && !snelModus && <Stap1 data={bedrijf} setData={setBedrijf} onNext={() => setStap(2)} onHelp={() => setHelpOpen(true)} onSnelEvaluatie={() => setSnelModus(true)} />}
+          {stap === 2 && <Stap2 bedrijf={bedrijf} onCsvData={setCsvData} onNext={segs => { setSegmenten(segs); setStap(3); }} onHelp={() => setHelpOpen(true)} onBack={() => setStap(1)} />}
+          {stap === 3 && <Stap3 bedrijf={bedrijf} segmenten={segmenten} setSegmenten={setSegmenten} onNext={pp => { setPijnpunten(pp); setStap(4); }} onHelp={() => setHelpOpen(true)} onBack={() => setStap(2)} />}
+          {stap === 4 && <Stap4 pijnpunten={pijnpunten} gekozen={gekozenPijnpunten} setGekozen={setGekozenPijnpunten} onNext={() => setStap(5)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} onBack={() => setStap(3)} />}
+          {stap === 5 && <Stap5 segmenten={segmenten} pijnpunten={pijnpunten} gekozenPijnpunten={gekozenPijnpunten} combinaties={combinaties} setCombinaties={setCombinaties} onNext={() => setStap(6)} bedrijf={bedrijf} onHelp={() => setHelpOpen(true)} />}
+          {stap === 6 && <Stap6 bedrijf={bedrijf} combinaties={combinaties} segmenten={segmenten} pijnpunten={pijnpunten} onNext={c => { setCampagne(c); setStap(7); }} onBack={() => setStap(5)} onHelp={() => setHelpOpen(true)} />}
+          {stap === 7 && <Stap7 bedrijf={bedrijf} segmenten={segmenten} pijnpunten={pijnpunten} combinaties={combinaties} campagne={campagne} onBack={() => setStap(6)} onHelp={() => setHelpOpen(true)} onNaarMeta={() => setStap(8)} />}
+          {stap === 8 && <Stap8 onBack={() => setStap(7)} onNaarEvaluatie={() => setStap(9)} />}
+          {stap === 9 && <Stap9 bedrijf={bedrijf} csvData={csvData} onBack={() => setStap(8)} onTrialVoltooid={markeerTrialGebruikt} />}
         </>}
       </div>
 
@@ -4194,7 +4108,7 @@ export default function App() {
         <div>
           <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: 20, color: C.groen, letterSpacing: ".3px", marginBottom: 4, lineHeight: 1 }}>Meta Ads Co-pilot</div>
           <div style={{ fontSize: 11, color: C.muted, fontFamily: font.body, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 3 }}>AI-aangedreven campagne builder</div>
-          <div style={{ fontSize: 11, color: C.muted, fontFamily: font.body, letterSpacing: ".5px" }}>Powered by Verdify · verdify.eu</div>
+          <div style={{ fontSize: 11, color: C.muted, fontFamily: font.body, letterSpacing: ".5px" }}>Powered by Verdify · verdify.eu · Verdify is een merknaam van Ecofinity BV</div>
         </div>
       </div>
     </div>
